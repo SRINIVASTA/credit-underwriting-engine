@@ -57,21 +57,24 @@ with col1:
     with st.expander("📈 Part 2: Financial Statements & Bureau Checks", expanded=True):
         cibil = st.slider("CIBIL Bureau Score", 300, 900, value=active_profile["cibil_score"] if active_profile and "cibil_score" in active_profile else 750)
         enquiries = st.number_input("Bureau Enquiries (Last 30 Days)", min_value=0, max_value=15, value=active_profile["recent_enquiries_30_days"] if active_profile and "recent_enquiries_30_days" in active_profile else 1)
-        noi = st.number_input("Net Operating Income (Annual INR)", value=active_profile["net_operating_income"] if active_profile and "net_operating_income" in active_profile else 2200000, step=50000)
-        annual_debt_service = st.number_input("Current Annual Debt Service (INR)", min_value=0, value=active_profile["annual_debt_service"] if active_profile and "annual_debt_service" in active_profile else 1200000, step=50000)
-        tol = st.number_input("Total Outside Liabilities (TOL INR)", min_value=0, value=active_profile["tol"] if active_profile and "tol" in active_profile else 6000000, step=100000)
-        tnw = st.number_input("Tangible Net Worth (TNW INR)", value=active_profile["tnw"] if active_profile and "tnw" in active_profile else 3500000, step=100000)
-        ca = st.number_input("Current Assets (INR)", min_value=0, value=active_profile["current_assets"] if active_profile and "current_assets" in active_profile else 2500000, step=50000)
-        cl = st.number_input("Current Liabilities (INR)", min_value=0, value=active_profile["current_liabilities"] if active_profile and "current_liabilities" in active_profile else 1800000, step=50000)
+        
+        # ALL FIXED FIELDS: Explicit floats locked into default parameters to prevent crashes
+        noi = st.number_input("Net Operating Income (Annual INR)", value=float(active_profile["net_operating_income"]) if active_profile and "net_operating_income" in active_profile else 2200000.0, step=50000.0)
+        annual_debt_service = st.number_input("Current Annual Debt Service (INR)", min_value=0.0, value=float(active_profile["annual_debt_service"]) if active_profile and "annual_debt_service" in active_profile else 1200000.0, step=50000.0)
+        tol = st.number_input("Total Outside Liabilities (TOL INR)", min_value=0.0, value=float(active_profile["tol"]) if active_profile and "tol" in active_profile else 6000000.0, step=100000.0)
+        tnw = st.number_input("Tangible Net Worth (TNW INR)", value=float(active_profile["tnw"]) if active_profile and "tnw" in active_profile else 3500000.0, step=100000.0)
+        ca = st.number_input("Current Assets (INR)", min_value=0.0, value=float(active_profile["current_assets"]) if active_profile and "current_assets" in active_profile else 2500000.0, step=50000.0)
+        cl = st.number_input("Current Liabilities (INR)", min_value=0.0, value=float(active_profile["current_liabilities"]) if active_profile and "current_liabilities" in active_profile else 1800000.0, step=50000.0)
 
     with st.expander("💸 Part 3: Loan Proposal Structure", expanded=True):
-        req_loan = st.number_input("Requested Term Loan Facility (INR)", min_value=0, value=active_profile["requested_loan"] if active_profile and "requested_loan" in active_profile else 6500000, step=100000)
-        collateral = st.number_input("Appraised Collateral Market Value (INR)", min_value=0, value=active_profile["collateral_value"] if active_profile and "collateral_value" in active_profile else 14000000, step=100000)
+        req_loan = st.number_input("Requested Term Loan Facility (INR)", min_value=0.0, value=float(active_profile["requested_loan"]) if active_profile and "requested_loan" in active_profile else 6500000.0, step=100000.0)
+        collateral = st.number_input("Appraised Collateral Market Value (INR)", min_value=0.0, value=float(active_profile["collateral_value"]) if active_profile and "collateral_value" in active_profile else 14000000.0, step=100000.0)
         loan_term = st.slider("Loan Tenure (Years)", 1, 10, value=active_profile["loan_term"] if active_profile and "loan_term" in active_profile else 7)
         base_mclr = st.number_input("Bank Benchmark Base Rate (MCLR %)", min_value=0.0, max_value=20.0, value=8.50, step=0.1)
+        
         st.markdown("**Tax & Banking Consistency Checks**")
-        gst_turnover = st.number_input("Annual Sales Declared in GST (INR)", min_value=0, value=active_profile["gst_turnover"] if active_profile and "gst_turnover" in active_profile else 12000000)
-        bank_credits = st.number_input("Total Operational Banking Credits (INR)", min_value=0, value=active_profile["bank_credits"] if active_profile and "bank_credits" in active_profile else 12200000)
+        gst_turnover = st.number_input("Annual Sales Declared in GST (INR)", min_value=0.0, value=float(active_profile["gst_turnover"]) if active_profile and "gst_turnover" in active_profile else 12000000.0, step=100000.0)
+        bank_credits = st.number_input("Total Operational Banking Credits (INR)", min_value=0.0, value=float(active_profile["bank_credits"]) if active_profile and "bank_credits" in active_profile else 12200000.0, step=100000.0)
         bounces = st.checkbox("Any Cheque / EMI Bounces in Last 12 Months?", value=active_profile["bounces"] if active_profile and "bounces" in active_profile else False)
         
         if gst_turnover > 0:
@@ -80,7 +83,6 @@ with col1:
             if abs(variance_pct) > 10.0: st.error(f"⚠️ Turnover Mismatch Detected: {variance_pct:+.2f}%")
             else: st.success(f"✅ Turnover Reconciled: {variance_pct:+.2f}%")
         else: variance_pct = 0.0
-# --- COL 2 PIPELINE ANALYSIS RENDER ENGINE (APPEND TO BLOCK 1) ---
 # --- COL 2 PIPELINE ANALYSIS RENDER ENGINE (APPEND TO BLOCK 1) ---
 with col2:
     st.header("⚡ Risk Analysis & System Output")
