@@ -75,15 +75,21 @@ def fetch_borrower_central_data(borrower_id):
         return None 
     except requests.exceptions.RequestException: return None 
 
-def safe_calculate_metrics(noi, annual_ds, ca, cl, tol, tnw, req_loan, collateral): 
-    """Calculates primary credit metrics and financial covenants.""" 
+def safe_calculate_metrics(noi, annual_ds, ca, cl, tol, tnw, req_loan, collateral, character_grade=5, conditions_grade=5): 
+    """Calculates primary metrics and includes qualitative 5 Cs grading adjustments."""
     dscr = round(noi / annual_ds, 2) if annual_ds > 0 else (0.0 if noi <= 0 else 99.9) 
-    if noi < 0 and annual_ds == 0: dscr = -99.9 
     cr_ratio = round(ca / cl, 2) if cl > 0 else 99.9 
     tol_tnw = round(tol / tnw, 2) if tnw > 0 else (0.0 if tol == 0 else 99.9) 
     ltv = round((req_loan / collateral) * 100, 2) if collateral > 0 else 0.0 
     foir = round((annual_ds / noi) * 100, 2) if noi > 0 else 0.0 
-    return dscr, cr_ratio, tol_tnw, ltv, foir 
+    
+    # Cheat Sheet Qualitative 5 Cs Modifier Rule:
+    # Poor Character or severe adverse market Conditions compress the cash flow grade
+    qualitative_modifier = 0.0
+    if character_grade < 4 or conditions_grade < 4:
+        qualitative_modifier = -15.0 # Subtracts score weight for bad qualitative screening
+        
+    return dscr, cr_ratio, tol_tnw, ltv, foir, qualitative_modifier
 
 def calculate_pv_amortization(annual_pmt, annual_rate, years): 
     r = (annual_rate / 100) 
