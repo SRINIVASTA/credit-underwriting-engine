@@ -39,7 +39,7 @@ if upload_mode == "Direct File Upload Package":
                 text_stream = io.StringIO(file_bytes.decode("utf-8")) 
                 raw_reader = list(csv.DictReader(text_stream)) 
                 
-                # Lowercase strip logic to synchronize headers across all environments
+                # Force clean lowercase alignment across all column keys
                 reader = []
                 for row in raw_reader:
                     cleaned_row = {str(k).strip().lower(): str(v).strip() for k, v in row.items() if k is not None}
@@ -60,27 +60,33 @@ if upload_mode == "Direct File Upload Package":
                     def str_to_bool(v): 
                         return str(v).strip().lower() in ("true", "1", "yes", "t") 
  
+                    # MATCHING ENGINE: Handles the exact truncated text headers from your spreadsheet screenshot
                     active_profile = { 
                         "industry": str(active_row.get("industry", "Pharma")), 
                         "cibil_score": int(float(active_row.get("cibil_score", 700))), 
-                        "recent_enquiries_30_days": int(float(active_row.get("recent_enquiries_30_days", 0))), 
-                        "net_operating_income": float(active_row.get("net_operating_income", 0.0)), 
-                        "annual_debt_service": float(active_row.get("annual_debt_service", 1.0)), 
+                        "recent_enquiries_30_days": int(float(active_row.get("recent_enquiries_30_days", active_row.get("recent_enq", 0)))), 
+                        
+                        "net_operating_income": float(active_row.get("net_operating_income", active_row.get("net_operat", 0.0))), 
+                        "annual_debt_service": float(active_row.get("annual_debt_service", active_row.get("annual_del", 1.0))), 
                         "tol": float(active_row.get("tol", 0.0)), 
                         "tnw": float(active_row.get("tnw", 1.0)), 
-                        "current_assets": float(active_row.get("current_assets", 0.0)), 
-                        "current_liabilities": float(active_row.get("current_liabilities", 1.0)), 
-                        "requested_loan": float(active_row.get("requested_loan", 0.0)), 
-                        "collateral_value": float(active_row.get("collateral_value", 0.0)), 
+                        
+                        "current_assets": float(active_row.get("current_assets", active_row.get("current_as", 0.0))), 
+                        "current_liabilities": float(active_row.get("current_liabilities", active_row.get("current_lia", 1.0))), 
+                        "requested_loan": float(active_row.get("requested_loan", active_row.get("requested", 0.0))), 
+                        "collateral_value": float(active_row.get("collateral_value", active_row.get("collateral_", 0.0))), 
+                        
                         "loan_term": int(float(active_row.get("loan_term", 5))), 
-                        "gst_turnover": float(active_row.get("gst_turnover", 0.0)), 
-                        "bank_credits": float(active_row.get("bank_credits", 0.0)), 
+                        "gst_turnover": float(active_row.get("gst_turnover", active_row.get("gst_turnov", 0.0))), 
+                        "bank_credits": float(active_row.get("bank_credits", active_row.get("bank_cred", 0.0))), 
+                        
                         "bounces": str_to_bool(active_row.get("bounces", False)), 
                         "pan_ent": str_to_bool(active_row.get("pan_ent", False)), 
                         "gst_ent": str_to_bool(active_row.get("gst_ent", False)), 
                         "biz_ent": str_to_bool(active_row.get("biz_ent", False)), 
                         "br_ent": str_to_bool(active_row.get("br_ent", False)), 
-                        "num_directors": int(float(active_row.get("num_directors", 1))), 
+                        
+                        "num_directors": int(float(active_row.get("num_directors", active_row.get("num_direc", 1)))), 
                         "directors_passed": int(float(active_row.get("directors_passed", 0))) 
                     } 
                 else: 
@@ -102,7 +108,6 @@ else:
     if active_profile: 
         st.sidebar.success(f"Linked File Account via API: {borrower_id_input}") 
 
-# If no active profile is loaded yet, instantiate hard coded baseline fallbacks
 if not active_profile:
     active_profile = {"industry": "Pharma", "cibil_score": 750, "recent_enquiries_30_days": 1, "net_operating_income": 2200000.0, "annual_debt_service": 1200000.0, "tol": 6000000.0, "tnw": 3500000.0, "current_assets": 2500000.0, "current_liabilities": 1800000.0, "requested_loan": 6500000.0, "collateral_value": 14000000.0, "loan_term": 7, "gst_turnover": 12000000.0, "bank_credits": 12200000.0, "bounces": False, "pan_ent": True, "gst_ent": True, "biz_ent": True, "br_ent": True, "num_directors": 2, "directors_passed": 2}
 # --- LAYOUT VIEWPORTS SETUP ---
