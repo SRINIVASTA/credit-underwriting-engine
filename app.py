@@ -81,6 +81,7 @@ with col1:
             else: st.success(f"✅ Turnover Reconciled: {variance_pct:+.2f}%")
         else: variance_pct = 0.0
 # --- COL 2 PIPELINE ANALYSIS RENDER ENGINE (APPEND TO BLOCK 1) ---
+# --- COL 2 PIPELINE ANALYSIS RENDER ENGINE (APPEND TO BLOCK 1) ---
 with col2:
     st.header("⚡ Risk Analysis & System Output")
     if collateral == 0: st.error("🚨 CRITICAL METRIC ALERT: Collateral asset valued at zero.")
