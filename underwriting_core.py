@@ -1,20 +1,15 @@
 import math
-import io
-import csv
-import json
 from fpdf import FPDF
 
 def validate_extended_profile(raw_data):
-    """
-    Automated Machine Data Intake: Parses strings and floating-point elements,
-    extracting underlying raw data fields for heuristic machine analysis.
-    """
+    """Validates borrower payloads, mapping risk fields from the cheat sheet."""
     def str_to_bool(v):
-        if isinstance(v, bool): return v
+        if isinstance(v, bool): 
+            return v
         return str(v).strip().lower() in ("true", "1", "yes", "t")
 
     return {
-        "industry": str(raw_data.get("industry", "Pharma")).strip(),
+        "industry": str(raw_data.get("industry", "Pharma")),
         "cibil_score": int(float(raw_data.get("cibil_score", 700))),
         "recent_enquiries_30_days": int(float(raw_data.get("recent_enquiries_30_days", 0))),
         "net_operating_income": float(raw_data.get("net_operating_income", 0.0)),
@@ -28,14 +23,11 @@ def validate_extended_profile(raw_data):
         "loan_term": int(float(raw_data.get("loan_term", 5))),
         "gst_turnover": float(raw_data.get("gst_turnover", 0.0)),
         "bank_credits": float(raw_data.get("bank_credits", 0.0)),
-        
-        # --- RAW INPUTS CONVERTED VIA STRING TO BOOLEAN CHECKERS ---
         "bounces": str_to_bool(raw_data.get("bounces", False)),
         "overdrawn_od": str_to_bool(raw_data.get("overdrawn_od", False)),
         "frequent_address_changes": str_to_bool(raw_data.get("frequent_address_changes", False)),
         "large_cash_deposits": str_to_bool(raw_data.get("large_cash_deposits", False)),
         "litigation_pending": str_to_bool(raw_data.get("litigation_pending", False)),
-        
         "pan_ent": str_to_bool(raw_data.get("pan_ent", False)),
         "gst_ent": str_to_bool(raw_data.get("gst_ent", False)),
         "biz_ent": str_to_bool(raw_data.get("biz_ent", False)),
@@ -44,44 +36,19 @@ def validate_extended_profile(raw_data):
         "directors_passed": int(float(raw_data.get("directors_passed", 0)))
     }
 
-def evaluate_system_red_flags(profile, variance_pct):
-    """
-    🧠 MACHINE HEURISTIC DETECTOR ENGINE: 
-    Automatically executes programmatic validation rules based on incoming corporate files.
-    """
-    flags = []
-    
-    # 1. Bureau Enquiries Check (Velocity Red Flag)
-    if profile["recent_enquiries_30_days"] > 3:
-        flags.append(f"CRITICAL HIGH VELOCITY: Profile triggers {profile['recent_enquiries_30_days']} bureau inquiries within 30 days.")
-        
-    # 2. Automated Address/Director Stability Check
-    if profile["frequent_address_changes"]:
-        flags.append("FRAUD RISK WARNING: Frequent corporate address modifications or director churn detected.")
-        
-    # 3. Bank Statement Ledger Bounce Scanner
-    if profile["bounces"]:
-        flags.append("OPERATIONAL DEFAULT: Active history of automated Cheque / EMI bounce failures detected in statement logs.")
-        
-    # 4. Overdraft Utilization Limit Scanner
-    if profile["overdrawn_od"]:
-        flags.append("LIQUIDITY CRUNCH: Core OD/CC trade funding accounts show continuous overdrawn states above approved allocation lines.")
-        
-    # 5. Anti-Money Laundering Variance Scanner
-    if profile["large_cash_deposits"]:
-        flags.append("COMPLIANCE TRIGGER: Unexplained high-volume physical cash deposits mismatching standardized industry business models.")
-        
-    # 6. Tax Discrepancy Evaluation Block
-    if abs(variance_pct) > 10.0:
-        flags.append(f"TURNOVER EXPOSURE LEAKAGE: Operational banking ledger inflows deviate by {variance_pct:+.2f}% compared to official GST filings.")
-        
-    # 7. Asset Legality Verification Tracker
-    if profile["litigation_pending"]:
-        flags.append("LEGAL INDICTMENT WARNING: Open courtroom cases or property disputes actively tracking against applicant or core collaterals.")
-        
-    return flags
+def fetch_borrower_central_data(borrower_id): 
+    if not borrower_id.strip(): 
+        return None 
+    return { 
+        "industry": "Healthcare", "cibil_score": 775, "recent_enquiries_30_days": 1, 
+        "net_operating_income": 2500000, "annual_debt_service": 1100000, 
+        "tol": 5500000, "tnw": 4000000, "current_assets": 3200000, "current_liabilities": 1500000, 
+        "requested_loan": 7500000, "collateral_value": 16000000, "loan_term": 7, 
+        "gst_turnover": 15000000, "bank_credits": 15150000, "bounces": False, 
+        "overdrawn_od": False, "frequent_address_changes": False, "large_cash_deposits": False, "litigation_pending": False,
+        "pan_ent": True, "gst_ent": True, "biz_ent": True, "br_ent": True, "directors_passed": 2, "num_directors": 2 
+    } 
 
-# --- KEEP REST OF YOUR STABLE FUNCTION STRUCTURES AS IS ---
 def safe_calculate_metrics(noi, annual_ds, ca, cl, tol, tnw, req_loan, collateral): 
     dscr = round(noi / annual_ds, 2) if annual_ds > 0 else (0.0 if noi <= 0 else 99.9) 
     cr_ratio = round(ca / cl, 2) if cl > 0 else 99.9 
@@ -91,19 +58,49 @@ def safe_calculate_metrics(noi, annual_ds, ca, cl, tol, tnw, req_loan, collatera
 
 def calculate_pv_amortization(annual_pmt, annual_rate, years): 
     r = (annual_rate / 100) 
-    if r <= 0: return annual_pmt * years 
+    if r <= 0: 
+        return annual_pmt * years 
     return annual_pmt * ((1 - math.pow(1 + r, -years)) / r) 
 
 def map_pricing_matrix(risk_score, base_mclr): 
-    if risk_score >= 85: return (base_mclr + 1.25), 65.0, 1.25, "Elite (Low Risk)", "success" 
-    elif risk_score >= 65: return (base_mclr + 2.50), 60.0, 1.35, "Standard (Moderate Risk)", "info" 
-    elif risk_score >= 50: return (base_mclr + 4.50), 45.0, 1.50, "Subprime (High Risk)", "warning" 
-    else: return 0.0, 0.0, 0.0, "Decline (Critical Risk)", "error" 
+    if risk_score >= 85: 
+        return (base_mclr + 1.25), 65.0, 1.25, "Elite (Low Risk)", "success" 
+    elif risk_score >= 65: 
+        return (base_mclr + 2.50), 60.0, 1.35, "Standard (Moderate Risk)", "info" 
+    elif risk_score >= 50: 
+        return (base_mclr + 4.50), 45.0, 1.50, "Subprime (High Risk)", "warning" 
+    else: 
+        return 0.0, 0.0, 0.0, "Decline (Critical Risk)", "error" 
+
+def evaluate_system_red_flags(profile, variance_pct):
+    flags = []
+    if profile.get("recent_enquiries_30_days", 0) > 3:
+        flags.append("Multiple credit enquiries within a compact 30-day window (High Velocity Risk).")
+    if profile.get("frequent_address_changes", False):
+        flags.append("Frequent corporate or director address changes flagged in records.")
+    if profile.get("bounces", False):
+        flags.append("Operational account history shows active Cheque or EMI bouncing events.")
+    if profile.get("overdrawn_od", False):
+        flags.append("Borrower's Overdraft (OD) account is chronically overdrawn.")
+    if profile.get("large_cash_deposits", False):
+        flags.append("Unexplained large cash deposits identified outside trading parameters.")
+    if abs(variance_pct) > 10.0:
+        flags.append(f"Turnover Mismatch: Bank Credit vs GST variance {variance_pct:+.2f}% exceeds parameters.")
+    if profile.get("litigation_pending", False):
+        flags.append("Active or pending corporate litigation identified against entity/property.")
+    return flags
 
 def calculate_amortization_schedule(final_sanction, final_rate, loan_term):
     r_rate = final_rate / 100
-    annual_pmt = final_sanction * (r_rate * math.pow(1 + r_rate, loan_term)) / (math.pow(1 + r_rate, loan_term) - 1) if r_rate > 0 else final_sanction / loan_term
-    balance, total_int_paid = final_sanction, 0
+    if r_rate > 0 and loan_term > 0:
+        denom = math.pow(1 + r_rate, loan_term) - 1
+        if denom > 0:
+            annual_pmt = final_sanction * (r_rate * math.pow(1 + r_rate, loan_term)) / denom
+        else:
+            annual_pmt = final_sanction / loan_term
+    else:
+        annual_pmt = final_sanction / max(1, loan_term)
+    balance, total_int_paid = final_sanction, 0.0
     years, balances, cumulative_interest = ["Year 0"], [balance], [0.0]
     for year in range(1, loan_term + 1):
         interest_paid = balance * r_rate
@@ -164,10 +161,10 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
         ("LTV Ratio", f"{ltv_v}%", "<= 60.0%", "Pass" if ltv_v <= 60.0 else "Fail")
     ]
     for r in rows:
-        pdf.cell(65, 7, str(r[0]), border=1)
-        pdf.cell(40, 7, str(r[1]), border=1)
-        pdf.cell(40, 7, str(r[2]), border=1)
-        pdf.cell(45, 7, str(r[3]), border=1, ln=True)
+        pdf.cell(65, 7, str(r), border=1)
+        pdf.cell(40, 7, str(r), border=1)
+        pdf.cell(40, 7, str(r), border=1)
+        pdf.cell(45, 7, str(r), border=1, ln=True)
     pdf.ln(5)
 
     if qualitative_5cs:
