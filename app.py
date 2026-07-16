@@ -1,20 +1,15 @@
-import os
-import sys
 import io
 import csv
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# Set root runtime folder explicitly
-app_root_dir = os.path.dirname(os.path.abspath(__file__))
-if app_root_dir not in sys.path:
-    sys.path.insert(0, app_root_dir)
-
-# Import the module as a single object to bypass line syntax parsing bugs completely
+# Flat imports starting right at the left margin with absolutely zero preceding spaces or tabs
 import underwriting_core
 
+# --- VIEWPORT PAGE CONFIGURATION MATCHING IMAGE ---
 st.set_page_config(page_title="Credit Underwriting Terminal", page_icon="📊", layout="wide")
+
 st.title("🏛️ Commercial Credit Underwriting Dashboard")
 st.subheader("Automated Loan Evaluation Engine — Banks & NBFCs (India)")
 
