@@ -1,0 +1,6 @@
+streamlit
+pandas
+plotly
+requests
+fpdf2
+pytest
