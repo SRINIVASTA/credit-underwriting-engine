@@ -6,14 +6,24 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# Ensure the system paths are cleanly appended with standard single-line spacing
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Clean root folder resolution parameters matching agentic systems
+app_root_dir = os.path.dirname(os.path.abspath(__file__))
+if app_root_dir not in sys.path:
+    sys.path.insert(0, app_root_dir)
 
-# Single flat-line import layer ensures zero workspace whitespace distortion
-from underwriting_core import safe_calculate_metrics, map_pricing_matrix, evaluate_system_red_flags, calculate_pv_amortization, calculate_amortization_schedule, generate_sanction_memo_pdf, fetch_borrower_central_data, validate_extended_profile
+# Clean single line marginal statements eliminate whitespace corruption loops
+from underwriting_core import safe_calculate_metrics
+from underwriting_core import map_pricing_matrix
+from underwriting_core import evaluate_system_red_flags
+from underwriting_core import calculate_pv_amortization
+from underwriting_core import calculate_amortization_schedule
+from underwriting_core import generate_sanction_memo_pdf
+from underwriting_core import fetch_borrower_central_data
+from underwriting_core import validate_extended_profile
 
-# --- MAIN DASHBOARD INTERFACE LAYER ---
+# --- VIEWPORT PAGE CONFIGURATION MATCHING IMAGE ---
 st.set_page_config(page_title="Credit Underwriting Terminal", page_icon="📊", layout="wide")
+
 st.title("🏛️ Commercial Credit Underwriting Dashboard")
 st.subheader("Automated Loan Evaluation Engine — Banks & NBFCs (India)")
 
@@ -28,7 +38,7 @@ if "active_profile" not in st.session_state:
         "pan_ent": True, "gst_ent": True, "biz_ent": True, "br_ent": True, "num_directors": 2, "directors_passed": 2
     }
 
-# --- CONTROL SIDEBAR INTERFACE ---
+# --- SIDEBAR INTERFACE ---
 st.sidebar.markdown("### 🗂️ Intake Source Selection")
 upload_mode = st.sidebar.radio("Data Sourcing Mode", ["Manual Intake / API Core Search", "Direct File Upload Package"])
 
@@ -63,7 +73,7 @@ if st.sidebar.button("Fetch Central Database"):
         st.session_state.active_profile = fetched
         st.rerun()
 
-# --- MAIN TWO-COLUMN DASHBOARD GRID ---
+# --- GRID COLUMNS SETUP ---
 col1, col2 = st.columns([1.1, 1.2])
 
 with col1:
@@ -107,9 +117,7 @@ with col1:
         if abs(variance_pct) > 10.0:
             st.error(f"⚠️ Turnover Mismatch Detected: {variance_pct:+.2f}%")
         else:
-            st.success(f"✅ Turnover Reconciled: {variance_pct:+.2f}%")
-
-with col2:
+            st.success(f"✅ Turnover Reconciled: {variance_pct:+.2f}%")with col2:
     st.header("⚡ Risk Analysis & System Output")
     dscr, cr_ratio, tol_tnw, ltv = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral)
     current_state = {
@@ -168,14 +176,12 @@ with col2:
     c_coll = st.text_area("4. Collateral (Coverage)", value=f"Calculated LTV set at {ltv}%.")
     c_cond = st.text_area("5. Conditions (Outlook)", value=f"Sector: '{industry}'.")
 
-    # --- SIDEBAR EXPORT PACKAGE HOOK ---
     try:
         meta_p = {"industry": industry, "kyc_cleared": pan_ent and gst_ent}
         metrics_p = {"dscr": dscr, "cr_ratio": cr_ratio, "tol_tnw": tol_tnw, "ltv": ltv}
         scoring_p = {"score": score, "flags": flags}
         results_p = {"req_loan": req_loan, "cash_flow_cap": cash_flow_cap, "asset_cap": asset_cap, "final_sanction": final_sanction, "final_rate": final_rate, "tier_name": tier_name}
         qual_p = {"character": c_char, "capacity": c_cap, "capital": c_cap_struct, "collateral": c_coll, "conditions": c_cond}
-        
         pdf_bytes = generate_sanction_memo_pdf(meta_p, metrics_p, scoring_p, results_p, qualitative_5cs=qual_p)
         st.sidebar.download_button(label="📥 Download Official Sanction PDF", data=pdf_bytes, file_name="Sanction_Memo_Draft.pdf", mime="application/pdf")
     except Exception:
@@ -187,7 +193,6 @@ st.markdown("### 📊 Interactive Portfolio Plots (Plotly Express Engine)")
 
 categories = ["Requested Facility", "Cash Flow Ceiling", "Collateral Ceiling", "Final Approved Sanction"]
 amounts = [req_loan, cash_flow_cap, asset_cap, final_sanction]
-
 fig_bars = go.Figure(go.Bar(x=amounts, y=categories, orientation='h', marker=dict(color=['#636EFA', '#EF553B', '#00CC96', '#AB63FA'])))
 fig_bars.update_layout(title="Loan Proposal vs Underwriting Exposure Ceilings", xaxis_title="Amount (INR)", yaxis_title="Evaluation Segment", height=320, margin=dict(l=20, r=20, t=40, b=20))
 st.plotly_chart(fig_bars, use_container_width=True)
