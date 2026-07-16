@@ -24,11 +24,11 @@ def test_pdf_multi_cell_paragraph_overflow_protection():
     scoring = {"score": 75, "flags": []}
     results = {"req_loan": 500000, "cash_flow_cap": 600000, "asset_cap": 700000, "final_sanction": 500000, "final_rate": 10.5, "tier_name": "Standard"}
     extreme_qualitative = {
-        "character": "Flawless baseline corporate parameters checking indicators. " * 50,
-        "capacity": "Adequate capital generation streams documented.",
-        "capital": "High historical partner skin in the game.",
-        "collateral": "Property valuation verified clear.",
-        "conditions": "Standard parameters map well against current regional segment trends."
+        "character": "Checking validation matrices. " * 50,
+        "capacity": "Adequate capital streams documented.",
+        "capital": "High historical promoter skin in the game.",
+        "collateral": "Property search complete.",
+        "conditions": "Standard parameters tracking perfectly."
     }
     pdf_bytes = generate_sanction_memo_pdf(meta, metrics, scoring, results, qualitative_5cs=extreme_qualitative)
     assert isinstance(pdf_bytes, bytes)
