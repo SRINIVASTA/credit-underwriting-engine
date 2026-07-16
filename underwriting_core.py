@@ -5,13 +5,16 @@ import json
 from fpdf import FPDF
 
 def validate_extended_profile(raw_data):
-    """Validates borrower payloads, mapping risk fields from the cheat sheet."""
+    """
+    Automated Machine Data Intake: Parses strings and floating-point elements,
+    extracting underlying raw data fields for heuristic machine analysis.
+    """
     def str_to_bool(v):
         if isinstance(v, bool): return v
         return str(v).strip().lower() in ("true", "1", "yes", "t")
 
     return {
-        "industry": str(raw_data.get("industry", "Pharma")),
+        "industry": str(raw_data.get("industry", "Pharma")).strip(),
         "cibil_score": int(float(raw_data.get("cibil_score", 700))),
         "recent_enquiries_30_days": int(float(raw_data.get("recent_enquiries_30_days", 0))),
         "net_operating_income": float(raw_data.get("net_operating_income", 0.0)),
@@ -25,11 +28,14 @@ def validate_extended_profile(raw_data):
         "loan_term": int(float(raw_data.get("loan_term", 5))),
         "gst_turnover": float(raw_data.get("gst_turnover", 0.0)),
         "bank_credits": float(raw_data.get("bank_credits", 0.0)),
+        
+        # --- RAW INPUTS CONVERTED VIA STRING TO BOOLEAN CHECKERS ---
         "bounces": str_to_bool(raw_data.get("bounces", False)),
         "overdrawn_od": str_to_bool(raw_data.get("overdrawn_od", False)),
         "frequent_address_changes": str_to_bool(raw_data.get("frequent_address_changes", False)),
         "large_cash_deposits": str_to_bool(raw_data.get("large_cash_deposits", False)),
         "litigation_pending": str_to_bool(raw_data.get("litigation_pending", False)),
+        
         "pan_ent": str_to_bool(raw_data.get("pan_ent", False)),
         "gst_ent": str_to_bool(raw_data.get("gst_ent", False)),
         "biz_ent": str_to_bool(raw_data.get("biz_ent", False)),
@@ -38,18 +44,44 @@ def validate_extended_profile(raw_data):
         "directors_passed": int(float(raw_data.get("directors_passed", 0)))
     }
 
-def fetch_borrower_central_data(borrower_id): 
-    if not borrower_id.strip(): return None 
-    return { 
-        "industry": "Healthcare", "cibil_score": 775, "recent_enquiries_30_days": 1, 
-        "net_operating_income": 2500000, "annual_debt_service": 1100000, 
-        "tol": 5500000, "tnw": 4000000, "current_assets": 3200000, "current_liabilities": 1500000, 
-        "requested_loan": 7500000, "collateral_value": 16000000, "loan_term": 7, 
-        "gst_turnover": 15000000, "bank_credits": 15150000, "bounces": False, 
-        "overdrawn_od": False, "frequent_address_changes": False, "large_cash_deposits": False, "litigation_pending": False,
-        "pan_ent": True, "gst_ent": True, "biz_ent": True, "br_ent": True, "directors_passed": 2, "num_directors": 2 
-    } 
+def evaluate_system_red_flags(profile, variance_pct):
+    """
+    🧠 MACHINE HEURISTIC DETECTOR ENGINE: 
+    Automatically executes programmatic validation rules based on incoming corporate files.
+    """
+    flags = []
+    
+    # 1. Bureau Enquiries Check (Velocity Red Flag)
+    if profile["recent_enquiries_30_days"] > 3:
+        flags.append(f"CRITICAL HIGH VELOCITY: Profile triggers {profile['recent_enquiries_30_days']} bureau inquiries within 30 days.")
+        
+    # 2. Automated Address/Director Stability Check
+    if profile["frequent_address_changes"]:
+        flags.append("FRAUD RISK WARNING: Frequent corporate address modifications or director churn detected.")
+        
+    # 3. Bank Statement Ledger Bounce Scanner
+    if profile["bounces"]:
+        flags.append("OPERATIONAL DEFAULT: Active history of automated Cheque / EMI bounce failures detected in statement logs.")
+        
+    # 4. Overdraft Utilization Limit Scanner
+    if profile["overdrawn_od"]:
+        flags.append("LIQUIDITY CRUNCH: Core OD/CC trade funding accounts show continuous overdrawn states above approved allocation lines.")
+        
+    # 5. Anti-Money Laundering Variance Scanner
+    if profile["large_cash_deposits"]:
+        flags.append("COMPLIANCE TRIGGER: Unexplained high-volume physical cash deposits mismatching standardized industry business models.")
+        
+    # 6. Tax Discrepancy Evaluation Block
+    if abs(variance_pct) > 10.0:
+        flags.append(f"TURNOVER EXPOSURE LEAKAGE: Operational banking ledger inflows deviate by {variance_pct:+.2f}% compared to official GST filings.")
+        
+    # 7. Asset Legality Verification Tracker
+    if profile["litigation_pending"]:
+        flags.append("LEGAL INDICTMENT WARNING: Open courtroom cases or property disputes actively tracking against applicant or core collaterals.")
+        
+    return flags
 
+# --- KEEP REST OF YOUR STABLE FUNCTION STRUCTURES AS IS ---
 def safe_calculate_metrics(noi, annual_ds, ca, cl, tol, tnw, req_loan, collateral): 
     dscr = round(noi / annual_ds, 2) if annual_ds > 0 else (0.0 if noi <= 0 else 99.9) 
     cr_ratio = round(ca / cl, 2) if cl > 0 else 99.9 
@@ -67,24 +99,6 @@ def map_pricing_matrix(risk_score, base_mclr):
     elif risk_score >= 65: return (base_mclr + 2.50), 60.0, 1.35, "Standard (Moderate Risk)", "info" 
     elif risk_score >= 50: return (base_mclr + 4.50), 45.0, 1.50, "Subprime (High Risk)", "warning" 
     else: return 0.0, 0.0, 0.0, "Decline (Critical Risk)", "error" 
-
-def evaluate_system_red_flags(profile, variance_pct):
-    flags = []
-    if profile["recent_enquiries_30_days"] > 3:
-        flags.append("Multiple credit enquiries within a compact 30-day window (High Velocity Risk).")
-    if profile["frequent_address_changes"]:
-        flags.append("Frequent corporate or director address changes flagged in records.")
-    if profile["bounces"]:
-        flags.append("Operational account history shows active Cheque or EMI bouncing events.")
-    if profile["overdrawn_od"]:
-        flags.append("Borrower's Overdraft (OD) account is chronically overdrawn.")
-    if profile["large_cash_deposits"]:
-        flags.append("Unexplained large cash deposits identified outside trading parameters.")
-    if abs(variance_pct) > 10.0:
-        flags.append(f"Turnover Mismatch: Bank Credit vs GST variance ({variance_pct:+.2f}%) exceeds parameters.")
-    if profile["litigation_pending"]:
-        flags.append("Active or pending corporate litigation identified against entity/property.")
-    return flags
 
 def calculate_amortization_schedule(final_sanction, final_rate, loan_term):
     r_rate = final_rate / 100
@@ -138,7 +152,6 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
  
     pdf.set_font("Helvetica", "", 10) 
     
-    # Safe float extraction logic strings to eliminate cell indexing trace crashes
     dscr_v = metrics_data.get('dscr', 0.0)
     cr_v = metrics_data.get('cr_ratio', 0.0)
     tol_v = metrics_data.get('tol_tnw', 0.0)
@@ -183,6 +196,5 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
         pdf.cell(0, 8, "5. CRITICAL OPERATIONAL WARNING NOTES / FLAGS", ln=True) 
         pdf.set_font("Helvetica", "I", 9) 
         for flag in scoring_data["flags"]: 
-            pdf.cell(0, 6, f"- {str(flag)}", ln=True) 
- 
-    return bytes(pdf.output())
+        pdf.cell(0, 6, f"- {str(flag)}", 
+        ln=True)return bytes(pdf.output())
