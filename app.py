@@ -25,6 +25,7 @@ upload_mode = st.sidebar.radio("Data Sourcing Mode", ["Manual Intake / API Core 
 
 active_profile = None 
 selected_row_idx = 0  
+dynamic_industry_list = ["Pharma", "FMCG", "Healthcare", "Education", "Hospitals", "Trading", "Restaurant", "Textile", "Real Estate", "Startup"]
 
 if upload_mode == "Direct File Upload Package": 
     st.sidebar.markdown("---") 
@@ -39,15 +40,21 @@ if upload_mode == "Direct File Upload Package":
                 text_stream = io.StringIO(file_bytes.decode("utf-8")) 
                 raw_reader = list(csv.DictReader(text_stream)) 
                 
-                # Force clean lowercase alignment across all column keys
                 reader = []
+                unique_industries = set()
                 for row in raw_reader:
                     cleaned_row = {str(k).strip().lower(): str(v).strip() for k, v in row.items() if k is not None}
                     reader.append(cleaned_row)
+                    if cleaned_row.get("industry"):
+                        unique_industries.add(cleaned_row.get("industry"))
+                
+                # Dynamic update prevents dropdown index out-of-bounds crashes across 100+ rows
+                if unique_industries:
+                    dynamic_industry_list = sorted(list(unique_industries))
                 
                 total_rows = len(reader) 
  
-                if total_rows > 1: 
+                if total_rows > 0: 
                     st.sidebar.info(f"📊 Multi-Row Batch File Identified: Found {total_rows} Accounts.") 
                     selected_row_idx = st.sidebar.selectbox( 
                         "Select Borrower Record to Load", 
@@ -60,34 +67,28 @@ if upload_mode == "Direct File Upload Package":
                     def str_to_bool(v): 
                         return str(v).strip().lower() in ("true", "1", "yes", "t") 
  
-                    # MATCHING ENGINE: Handles the exact truncated text headers from your spreadsheet screenshot
                     active_profile = { 
                         "industry": str(active_row.get("industry", "Pharma")), 
                         "cibil_score": int(float(active_row.get("cibil_score", 700))), 
                         "recent_enquiries_30_days": int(float(active_row.get("recent_enquiries_30_days", active_row.get("recent_enq", 0)))), 
-                        
                         "net_operating_income": float(active_row.get("net_operating_income", active_row.get("net_operat", 0.0))), 
                         "annual_debt_service": float(active_row.get("annual_debt_service", active_row.get("annual_del", 1.0))), 
                         "tol": float(active_row.get("tol", 0.0)), 
                         "tnw": float(active_row.get("tnw", 1.0)), 
-                        
                         "current_assets": float(active_row.get("current_assets", active_row.get("current_as", 0.0))), 
                         "current_liabilities": float(active_row.get("current_liabilities", active_row.get("current_lia", 1.0))), 
                         "requested_loan": float(active_row.get("requested_loan", active_row.get("requested", 0.0))), 
                         "collateral_value": float(active_row.get("collateral_value", active_row.get("collateral_", 0.0))), 
-                        
                         "loan_term": int(float(active_row.get("loan_term", 5))), 
                         "gst_turnover": float(active_row.get("gst_turnover", active_row.get("gst_turnov", 0.0))), 
                         "bank_credits": float(active_row.get("bank_credits", active_row.get("bank_cred", 0.0))), 
-                        
                         "bounces": str_to_bool(active_row.get("bounces", False)), 
                         "pan_ent": str_to_bool(active_row.get("pan_ent", False)), 
                         "gst_ent": str_to_bool(active_row.get("gst_ent", False)), 
                         "biz_ent": str_to_bool(active_row.get("biz_ent", False)), 
                         "br_ent": str_to_bool(active_row.get("br_ent", False)), 
-                        
                         "num_directors": int(float(active_row.get("num_directors", active_row.get("num_direc", 1)))), 
-                        "directors_passed": int(float(active_row.get("directors_passed", 0))) 
+                        "directors_passed": int(float(active_row.get("directors_passed", active_row.get("directors_p", 0)))) 
                     } 
                 else: 
                     uploaded_file.seek(0) 
@@ -116,12 +117,15 @@ col1, col2 = st.columns([1, 1.2])
 with col1: 
     st.header("📋 Borrower & Entity Intake") 
     with st.expander("🔑 Part 1: Corporate Registration & KYC", expanded=True): 
-        industry_list = ["Pharma", "FMCG", "Healthcare", "Education", "Hospitals", "Trading", "Trading/Distributors", "Distributors", "Restaurant", "Restaurant/Hospitality", "Hospitality", "Textile/Garments", "Textile", "Garments", "Real Estate", "Real Estate/Const.", "Construction", "Startup"] 
-    
-
         current_ind = active_profile["industry"]
-        default_ind_idx = industry_list.index(current_ind) if current_ind in industry_list else 0 
-        industry = st.selectbox("Industry Classification", industry_list, index=default_ind_idx, key=f"ind_sel_idx_{selected_row_idx}") 
+        
+        # Runtime backstop: dynamically inject missing file values into selection lists
+        if current_ind not in dynamic_industry_list:
+            dynamic_industry_list.append(current_ind)
+            dynamic_industry_list = sorted(dynamic_industry_list)
+            
+        default_ind_idx = dynamic_industry_list.index(current_ind)
+        industry = st.selectbox("Industry Classification", dynamic_industry_list, index=default_ind_idx, key=f"ind_sel_idx_{selected_row_idx}") 
         
         c1, c2 = st.columns(2) 
         with c1: 
@@ -174,7 +178,6 @@ with col2:
     if tnw <= 0: st.error("⚠️ SYSTEM BALANCE NOTICE: Tangible Net Worth is zero or negative.") 
     if noi <= 0: st.error("🛑 UNDERWRITING HALT: Operating income is negative or zero.") 
     
-    # Mathematical execution with dynamic bound inputs
     dscr, cr_ratio, tol_tnw, ltv = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral) 
     
     fin_score = 40 if dscr >= 1.50 else (32 if dscr >= 1.25 else (20 if dscr >= 1.10 else 0)) 
