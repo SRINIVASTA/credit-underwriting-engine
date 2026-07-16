@@ -176,16 +176,23 @@ with col2:
     if tnw <= 0: st.error("⚠️ SYSTEM BALANCE NOTICE: Tangible Net Worth is zero or negative.") 
     if noi <= 0: st.error("🛑 UNDERWRITING HALT: Operating income is negative or zero.") 
     
-    # Ratios calculated via native float variables from the interface
-    dscr, cr_ratio, tol_tnw, ltv = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral) 
+    # FIX: Now fully matching the 5 returned variables from underwriting_core.py
+    dscr, cr_ratio, tol_tnw, ltv, foir = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral) 
     
-    fin_score = 40 if dscr >= 1.50 else (32 if dscr >= 1.25 else (20 if dscr >= 1.10 else 0)) 
-    bureau_score = 30 if cibil >= 750 else (24 if cibil >= 700 else (15 if cibil >= 650 else 0)) 
+    # CHEAT SHEET FRAUD RED FLAG PENALTY: Deduct points if GST variance mismatch exceeds 10%
+    gst_penalty = 10 if (gst_turnover > 0 and abs(variance_pct) > 10.0) else 0
+    # CHEAT SHEET HIGH ENQUIRY PENALTY: Deduct points if background inquiries in 30 days run high
+    enq_penalty = 5 if enquiries > 3 else 0
+
+    fin_score = max(0, (40 if dscr >= 1.50 else (32 if dscr >= 1.25 else (20 if dscr >= 1.10 else 0))) - gst_penalty) 
+    bureau_score = max(0, (30 if cibil >= 750 else (24 if cibil >= 700 else (15 if cibil >= 650 else 0))) - enq_penalty) 
     leverage_score = 15 if tol_tnw <= 2.00 and tnw > 0 else (11 if tol_tnw <= 3.00 and tnw > 0 else (6 if tol_tnw <= 4.50 and tnw > 0 else 0)) 
     asset_score = 15 if ltv <= 50.0 and collateral > 0 else (12 if ltv <= 60.0 and collateral > 0 else (7 if ltv <= 75.0 and collateral > 0 else 0)) 
     
     score = fin_score + bureau_score + leverage_score + asset_score 
-    final_rate, max_ltv, min_dscr, tier_name, tier_type = map_pricing_matrix(score, base_mclr) 
+    
+    # Maps pricing matrix and dynamically applies +1.50% high risk sector premium (Real Estate/Startups)
+    final_rate, max_ltv, min_dscr, tier_name, tier_type = map_pricing_matrix(score, base_mclr, industry) 
     kyc_cleared = pan_ent and gst_ent and biz_ent and br_ent and (directors_passed == num_directors) 
     
     flags = [] 
@@ -193,6 +200,8 @@ with col2:
     if bounces: flags.append("Operational account notes active Cheque/EMI bouncing history.") 
     if gst_turnover > 0 and abs(variance_pct) > 10.0: 
         flags.append(f"Reconciliation Mismatch: Bank Credit vs GST filing variance ({variance_pct:+.2f}%) exceeds baseline parameters.") 
+    if foir > 50.0:
+        flags.append(f"High Leverage Threat: Fixed Obligation ratio ({foir}%) crosses target thresholds.")
         
     if flags: 
         st.warning("⚠️ Critical Warnings Triggered") 
@@ -203,15 +212,15 @@ with col2:
     st.subheader("📊 100-Point Internal Risk Scorecard") 
     score_df = pd.DataFrame({ 
         "Risk Factor Module": ["Cash Flow (DSCR)", "Bureau History (CIBIL)", "Capital Structure (TOL/TNW)", "Collateral Cover (LTV)"], 
-        "Observed Metrics": [f"DSCR: {dscr}x", f"Score: {cibil}", f"Leverage: {tol_tnw}x", f"Ratio: {ltv}%"], 
+        "Observed Metrics": [f"DSCR: {dscr}x (FOIR: {foir}%)", f"Score: {cibil}", f"Leverage: {tol_tnw}x", f"Ratio: {ltv}%"], 
         "Points Allowed": [f"{fin_score} / 40", f"{bureau_score} / 30", f"{leverage_score} / 15", f"{asset_score} / 15"] 
     }) 
     st.table(score_df) 
     
     st.subheader("💡 Smart Loan Sizing & Risk-Based Pricing") 
     # POLICY INTEGRATION: Pure mathematical gate directly enforcing your financial rules checklist
-    if score < 50 or noi <= 0: 
-        st.error(f"❌ APPLICATION REJECTED OUTRIGHT — Total Scorecard Grade: {score}/100") 
+    if score < 50 or noi <= 0 or cibil < 650: 
+        st.error(f"❌ APPLICATION REJECTED OUTRIGHT — Total Scorecard Grade: {score}/100 (CIBIL Auto-Decline Safe Boundary Applied)") 
     else: 
         max_annual_ds = noi / min_dscr 
         cash_flow_cap = calculate_pv_amortization(max_annual_ds, final_rate, loan_term) 
@@ -221,11 +230,12 @@ with col2:
         
         st.success(f"✅ UNDERWRITING APPLICATION APPROVED — Total Scorecard Grade: {score}/100")
 
-        # Graceful handling for registration notes to prevent interrupting financial decisions
         if not kyc_cleared:
             st.warning("⚠️ Operational Advisory Notice: Mismatches or gaps in entity filing paperwork / director verification count are currently active.")
 
         st.metric(label="Calculated Internal Risk Grade Score", value=f"{score} / 100 Points") 
+        st.info(f"📋 Risk Profile Tier Assignment: {tier_name}")
+        
         m1, m2 = st.columns(2) 
         with m1: 
             st.metric(label="Risk-Based Pricing Applied (APR)", value=f"{round(final_rate, 2)}%") 
@@ -237,20 +247,6 @@ with col2:
         st.markdown("---") 
         st.metric(label="📄 FINAL APPROVED SANCTION AMOUNT", value=f"₹{final_sanction:,.2f}") 
         
-        # --- EXECUTING THE COMPILATION DOWNLOAD BLOCK --- 
-        st.sidebar.markdown("---") 
-        st.sidebar.subheader("📥 Export Sanction Package") 
-        meta_pkg = {"industry": industry, "kyc_cleared": kyc_cleared} 
-        metrics_pkg = {"dscr": dscr, "cr_ratio": cr_ratio, "tol_tnw": tol_tnw, "ltv": ltv} 
-        scoring_pkg = {"score": score, "flags": flags} 
-        results_pkg = {"req_loan": req_loan, "cash_flow_cap": cash_flow_cap, "asset_cap": asset_cap, "final_sanction": final_sanction, "final_rate": final_rate, "tier_name": tier_name} 
- 
-        try: 
-            pdf_bytes = generate_sanction_memo_pdf(meta_pkg, metrics_pkg, scoring_pkg, results_pkg) 
-            st.sidebar.download_button(label="📄 Download Official Sanction PDF", data=pdf_bytes, file_name="Sanction_Memo_Draft.pdf", mime="application/pdf", key=f"pdf_btn_idx_{selected_row_idx}") 
-        except Exception: 
-            st.sidebar.error("Could not pre-compile download module bundle.") 
-            
         # --- PLOTLY DATA VISUALIZATION ENGINE --- 
         st.markdown("---") 
         st.subheader("📊 Interactive Portfolio Plots (Plotly Express Engine)") 
