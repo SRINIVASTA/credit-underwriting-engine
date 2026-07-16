@@ -23,7 +23,6 @@ st.subheader("Automated Loan Evaluation Engine — Banks & NBFCs (India)")
 st.sidebar.header("📁 Intake Source Selection") 
 upload_mode = st.sidebar.radio("Data Sourcing Mode", ["Manual Intake / API Core Search", "Direct File Upload Package"]) 
 
-# Safe Fallback initializations to prevent NameErrors in dynamic widgets
 active_profile = None 
 selected_row_idx = 0  
 
@@ -46,11 +45,12 @@ if upload_mode == "Direct File Upload Package":
                     selected_row_idx = st.sidebar.selectbox( 
                         "Select Borrower Record to Load", 
                         range(total_rows), 
-                        format_func=lambda x: f"Row {x+1}: {reader[x].get('industry', 'Record')} (CIBIL: {reader[x].get('cibil_score', 'N/A')})" 
+                        format_func=lambda x: f"Row {x+1}: {reader[x].get('Industry', reader[x].get('industry', 'Record'))} (CIBIL: {reader[x].get('cibil_score', 'N/A')})" 
                     ) 
  
                     raw_row = reader[selected_row_idx] 
-                    cleaned_row = {str(k).strip(): str(v).strip() for k, v in raw_row.items() if k is not None} 
+                    # Normalize keys to lowercase to guard against mixed CSV header naming variations
+                    cleaned_row = {str(k).strip().lower(): str(v).strip() for k, v in raw_row.items() if k is not None} 
  
                     def str_to_bool(v): 
                         return str(v).strip().lower() in ("true", "1", "yes", "t") 
@@ -102,8 +102,10 @@ col1, col2 = st.columns([1, 1.2])
 with col1: 
     st.header("📋 Borrower & Entity Intake") 
     with st.expander("🔑 Part 1: Corporate Registration & KYC", expanded=True): 
-        industry_list = ["Pharma", "FMCG", "Healthcare", "Education", "Hospitals", "Trading", "Distributors", "Restaurant", "Hospitality", "Textile", "Garments", "Real Estate", "Construction", "Startup"] 
-        default_ind_idx = industry_list.index(active_profile["industry"]) if active_profile and "industry" in active_profile else 0 
+        industry_list = ["Pharma", "FMCG", "Healthcare", "Education", "Hospitals", "Trading", "Trading/Distributors", "Distributors", "Restaurant", "Textile/Garments", "Textile", "Garments", "Real Estate", "Construction", "Startup"] 
+        
+        current_ind = active_profile["industry"] if active_profile and "industry" in active_profile else "Pharma"
+        default_ind_idx = industry_list.index(current_ind) if current_ind in industry_list else 0 
         industry = st.selectbox("Industry Classification", industry_list, index=default_ind_idx, key=f"ind_sel_{selected_row_idx}") 
         
         c1, c2 = st.columns(2) 
@@ -161,6 +163,7 @@ with col2:
     
     dscr, cr_ratio, tol_tnw, ltv = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral) 
     
+    # Mathematical Scoring Conditions driven entirely by dynamic types
     fin_score = 40 if dscr >= 1.50 else (32 if dscr >= 1.25 else (20 if dscr >= 1.10 else 0)) 
     bureau_score = 30 if cibil >= 750 else (24 if cibil >= 700 else (15 if cibil >= 650 else 0)) 
     leverage_score = 15 if tol_tnw <= 2.00 and tnw > 0 else (11 if tol_tnw <= 3.00 and tnw > 0 else (6 if tol_tnw <= 4.50 and tnw > 0 else 0)) 
