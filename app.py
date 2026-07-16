@@ -116,8 +116,9 @@ col1, col2 = st.columns([1, 1.2])
 with col1: 
     st.header("📋 Borrower & Entity Intake") 
     with st.expander("🔑 Part 1: Corporate Registration & KYC", expanded=True): 
-        industry_list = ["Pharma", "FMCG", "Healthcare", "Education", "Hospitals", "Trading", "Trading/Distributors", "Distributors", "Restaurant", "Textile/Garments", "Textile", "Garments", "Real Estate", "Construction", "Startup"] 
-        
+        industry_list = ["Pharma", "FMCG", "Healthcare", "Education", "Hospitals", "Trading", "Trading/Distributors", "Distributors", "Restaurant", "Restaurant/Hospitality", "Hospitality", "Textile/Garments", "Textile", "Garments", "Real Estate", "Real Estate/Const.", "Construction", "Startup"] 
+    
+
         current_ind = active_profile["industry"]
         default_ind_idx = industry_list.index(current_ind) if current_ind in industry_list else 0 
         industry = st.selectbox("Industry Classification", industry_list, index=default_ind_idx, key=f"ind_sel_idx_{selected_row_idx}") 
