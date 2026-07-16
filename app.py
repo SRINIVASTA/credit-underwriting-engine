@@ -11,7 +11,7 @@ from underwriting_core import (
     calculate_pv_amortization, 
     map_pricing_matrix, 
     calculate_amortization_schedule,
-    generate_sanction_memo_pdf  # <-- Restored Core Function Link
+    generate_sanction_memo_pdf
 ) 
 
 # --- STREAMLIT UI VIEWPORTS CONFIGURATION --- 
@@ -115,10 +115,15 @@ col1, col2 = st.columns([1, 1.2])
 
 with col1: 
     st.header("📋 Borrower & Entity Intake") 
+    
+    # CHEAT SHEET INTEGRATION: The 5 Cs of Credit Qualitative Scoring Matrix
+    with st.expander("🛡️ Part 1.5: The 5 Cs of Credit Evaluation", expanded=True):
+        st.markdown("**Qualitative Assessment Framework**")
+        character_grade = st.slider("Management Character & Track Record", 1, 10, value=7, key=f"char_idx_{selected_row_idx}")
+        conditions_grade = st.slider("Business Conditions & Industry Outlook", 1, 10, value=7, key=f"cond_idx_{selected_row_idx}")
+        
     with st.expander("🔑 Part 1: Corporate Registration & KYC", expanded=True): 
         current_ind = active_profile["industry"]
-        
-        # Runtime backstop: dynamically inject missing file values into selection lists
         if current_ind not in dynamic_industry_list:
             dynamic_industry_list.append(current_ind)
             dynamic_industry_list = sorted(dynamic_industry_list)
@@ -160,6 +165,11 @@ with col1:
         gst_turnover = st.number_input("Annual Sales Declared in GST (INR)", min_value=0.0, value=float(active_profile["gst_turnover"]), step=100000.0, key=f"gst_turn_idx_{selected_row_idx}") 
         bank_credits = st.number_input("Total Operational Banking Credits (INR)", min_value=0.0, value=float(active_profile["bank_credits"]), step=100000.0, key=f"bank_cred_idx_{selected_row_idx}") 
         bounces = st.checkbox("Any Cheque / EMI Bounces in Last 12 Months?", value=active_profile["bounces"], key=f"bounce_chk_idx_{selected_row_idx}") 
+        
+        # CHEAT SHEET INTEGRATION: Behavioral Red Flags Panel
+        st.markdown("**🚨 Behavioral Red Flags Panel (Vetting Audit)**")
+        litigation_flag = st.checkbox("Any Active Litigation on Property / Promoters?", value=False, key=f"lit_chk_{selected_row_idx}")
+        circular_flag = st.checkbox("Suspected Circular Transaction / Loop Banking Entries?", value=False, key=f"circ_chk_{selected_row_idx}")
  
         if gst_turnover > 0: 
             variance_amt = bank_credits - gst_turnover 
@@ -177,18 +187,27 @@ with col2:
     if tnw <= 0: st.error("⚠️ SYSTEM BALANCE NOTICE: Tangible Net Worth is zero or negative.") 
     if noi <= 0: st.error("🛑 UNDERWRITING HALT: Operating income is negative or zero.") 
     
+    # Synchronized unpacking line capturing the 5 parameters from underwriting_core
     dscr, cr_ratio, tol_tnw, ltv, foir = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral) 
     
+    # CHEAT SHEET SCORING PENALTIES: Score compression rules derived from fraud red flags
     gst_penalty = 10 if (gst_turnover > 0 and abs(variance_pct) > 10.0) else 0
     enq_penalty = 5 if enquiries > 3 else 0
+    
+    # CHEAT SHEET 5 Cs MODIFIER: Shave 15 points off if qualitative sliders dip below baseline thresholds
+    qualitative_penalty = 15 if (character_grade < 5 or conditions_grade < 5) else 0
+    # HARD CRITICAL BLOCKS: Heavy penalty if legal litigation or loop transaction checks fire
+    fraud_penalty = 20 if (litigation_flag or circular_flag) else 0
 
     fin_score = max(0, (40 if dscr >= 1.50 else (32 if dscr >= 1.25 else (20 if dscr >= 1.10 else 0))) - gst_penalty) 
     bureau_score = max(0, (30 if cibil >= 750 else (24 if cibil >= 700 else (15 if cibil >= 650 else 0))) - enq_penalty) 
     leverage_score = 15 if tol_tnw <= 2.00 and tnw > 0 else (11 if tol_tnw <= 3.00 and tnw > 0 else (6 if tol_tnw <= 4.50 and tnw > 0 else 0)) 
     asset_score = 15 if ltv <= 50.0 and collateral > 0 else (12 if ltv <= 60.0 and collateral > 0 else (7 if ltv <= 75.0 and collateral > 0 else 0)) 
     
-    score = fin_score + bureau_score + leverage_score + asset_score 
+    # Aggregate scorecard calculation including premium modifiers
+    score = max(0, fin_score + bureau_score + leverage_score + asset_score - qualitative_penalty - fraud_penalty) 
     
+    # Maps pricing and dynamically loads the +1.50% yield premium penalty for Real Estate / Construction / Startups
     final_rate, max_ltv, min_dscr, tier_name, tier_type = map_pricing_matrix(score, base_mclr, industry) 
     kyc_cleared = pan_ent and gst_ent and biz_ent and br_ent and (directors_passed == num_directors) 
     
@@ -199,6 +218,10 @@ with col2:
         flags.append(f"Reconciliation Mismatch: Bank Credit vs GST filing variance ({variance_pct:+.2f}%) exceeds baseline parameters.") 
     if foir > 50.0:
         flags.append(f"High Leverage Threat: Fixed Obligation ratio ({foir}%) crosses target thresholds.")
+    if litigation_flag:
+        flags.append("CRITICAL FRAUD HOLD: Active promoter or real-estate property litigation notes discovered.")
+    if circular_flag:
+        flags.append("AUDIT WARNING: Shell ledger routing or circular circular-banking indicators triggered.")
         
     if flags: 
         st.warning("⚠️ Critical Warnings Triggered") 
@@ -215,8 +238,9 @@ with col2:
     st.table(score_df) 
     
     st.subheader("💡 Smart Loan Sizing & Risk-Based Pricing") 
+    # CHEAT SHEET SAFEGUARD RULES GATE: Rejects if points total < 50, operating cash flow is zero, or bureau CIBIL drops < 650
     if score < 50 or noi <= 0 or cibil < 650: 
-        st.error(f"❌ APPLICATION REJECTED OUTRIGHT — Total Scorecard Grade: {score}/100 (CIBIL Auto-Decline Safe Boundary Applied)") 
+        st.error(f"❌ APPLICATION REJECTED OUTRIGHT — Total Scorecard Grade: {score}/100 (CIBIL / Scorecard Rule Safety Decline Applied)") 
     else: 
         max_annual_ds = noi / min_dscr 
         cash_flow_cap = calculate_pv_amortization(max_annual_ds, final_rate, loan_term) 
@@ -243,7 +267,7 @@ with col2:
         st.markdown("---") 
         st.metric(label="📄 FINAL APPROVED SANCTION AMOUNT", value=f"₹{final_sanction:,.2f}") 
         
-        # --- RESTORED EXECUTING THE COMPILATION DOWNLOAD BLOCK --- 
+        # --- EXECUTING THE COMPILATION DOWNLOAD BLOCK --- 
         st.sidebar.markdown("---") 
         st.sidebar.subheader("📥 Export Sanction Package") 
         meta_pkg = {"industry": industry, "kyc_cleared": kyc_cleared} 
@@ -252,7 +276,6 @@ with col2:
         results_pkg = {"req_loan": req_loan, "cash_flow_cap": cash_flow_cap, "asset_cap": asset_cap, "final_sanction": final_sanction, "final_rate": final_rate, "tier_name": tier_name} 
  
         try: 
-            # Calls the standalone class built into underwriting_core.py safely
             pdf_bytes = generate_sanction_memo_pdf(meta_pkg, metrics_pkg, scoring_pkg, results_pkg) 
             st.sidebar.download_button(label="📄 Download Official Sanction PDF", data=pdf_bytes, file_name="Sanction_Memo_Draft.pdf", mime="application/pdf", key=f"pdf_btn_idx_{selected_row_idx}") 
         except Exception: 
