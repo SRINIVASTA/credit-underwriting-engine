@@ -109,7 +109,6 @@ with col1:
             st.error(f"⚠️ Turnover Mismatch Detected: {variance_pct:+.2f}%")
         else:
             st.success(f"✅ Turnover Reconciled: {variance_pct:+.2f}%")
-
 with col2:
     st.header("⚡ Risk Analysis & System Output")
     dscr, cr_ratio, tol_tnw, ltv = underwriting_core.safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral)
@@ -175,12 +174,12 @@ with col2:
         scoring_p = {"score": score, "flags": flags}
         results_p = {"req_loan": req_loan, "cash_flow_cap": cash_flow_cap, "asset_cap": asset_cap, "final_sanction": final_sanction, "final_rate": final_rate, "tier_name": tier_name}
         qual_p = {"character": c_char, "capacity": c_cap, "capital": c_cap_struct, "collateral": c_coll, "conditions": c_cond}
-        pdf_bytes = generate_sanction_memo_pdf(meta_p, metrics_p, scoring_p, results_p, qualitative_5cs=qual_p)
+        pdf_bytes = underwriting_core.generate_sanction_memo_pdf(meta_p, metrics_p, scoring_p, results_p, qualitative_5cs=qual_p)
         st.sidebar.download_button(label="📥 Download Official Sanction PDF", data=pdf_bytes, file_name="Sanction_Memo_Draft.pdf", mime="application/pdf")
     except Exception:
         pass
 
-# --- WIDE FORM PORTFOLIO PLOTS (OUTSIDE OF COLUMNS FOR FULL WIDTH) ---
+# --- WIDE FORM PLOTLY EXPRESS GRAPHS (OUTSIDE OF WRAPPERS) ---
 st.markdown("---")
 st.markdown("### 📊 Interactive Portfolio Plots (Plotly Express Engine)")
 
@@ -190,7 +189,7 @@ fig_bars = go.Figure(go.Bar(x=amounts, y=categories, orientation='h', marker=dic
 fig_bars.update_layout(title="Loan Proposal vs Underwriting Exposure Ceilings", xaxis_title="Amount (INR)", yaxis_title="Evaluation Segment", height=320, margin=dict(l=20, r=20, t=40, b=20))
 st.plotly_chart(fig_bars, use_container_width=True)
 
-years, balances, cumulative_interest = calculate_amortization_schedule(final_sanction, final_rate, loan_term)
+years, balances, cumulative_interest = underwriting_core.calculate_amortization_schedule(final_sanction, final_rate, loan_term)
 fig_line = go.Figure()
 fig_line.add_trace(go.Scatter(x=years, y=balances, mode='lines+markers', name='Principal Outstanding', line=dict(color='#EF553B', width=3)))
 fig_line.add_trace(go.Scatter(x=years, y=cumulative_interest, mode='lines+markers', name='Cumulative Interest Paid', line=dict(color='#636EFA', width=3, dash='dash')))
