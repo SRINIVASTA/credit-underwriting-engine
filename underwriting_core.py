@@ -112,7 +112,8 @@ class SanctionMemoPDF(FPDF):
         self.set_font("Helvetica", "B", 14)
         self.cell(0, 10, "OFFICIAL CREDIT UNDERWRITING SANCTION MEMO", border=False, ln=True, align="C")
         self.set_font("Helvetica", "I", 9)
-        self.cell(0, 5, "Confidential — Internal Bank Risk Committee Vetting Document", border=False, ln=True, align="C")
+        # FIXED: Replaced the long em-dash (—) with a basic clean hyphen (-)
+        self.cell(0, 5, "Confidential - Internal Bank Risk Committee Vetting Document", border=False, ln=True, align="C")
         self.ln(5)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5)
@@ -123,7 +124,7 @@ class SanctionMemoPDF(FPDF):
         self.cell(0, 10, f"Page {self.page_no()} | System Verification Secured Framework", align="C")
 
 def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_data):
-    """Compiles structured parameters into a valid PDF binary byte stream."""
+    """Compiles structured parameters into a valid PDF binary byte stream without encoding failures."""
     pdf = SanctionMemoPDF()
     pdf.add_page()
     
@@ -134,7 +135,8 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
     pdf.cell(95, 6, f"Target Industry Sector: {str(meta_data['industry'])}")
     pdf.cell(95, 6, f"Evaluated Scoring Grade: {str(scoring_data['score'])} / 100 Points", ln=True)
     pdf.cell(95, 6, f"Risk Tier Assigned: {str(results_data['tier_name'])}")
-    pdf.cell(95, 6, f"KYC Compliance Track: {'PASSED' if meta_data['kyc_cleared'] else 'FAILED/HOLD'}", ln=True)
+    # FIXED: Replaced backslash separators with a standard clean hyphen (-)
+    pdf.cell(95, 6, f"KYC Compliance Track: {'PASSED' if meta_data['kyc_cleared'] else 'FAILED - HOLD'}", ln=True)
     pdf.ln(5)
 
     # 2. Risk Metrics Table Ingestion Block
@@ -142,7 +144,7 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
     pdf.cell(0, 8, "2. UNDERWRITING ANALYSIS FACTOR BREAKDOWN", ln=True)
     pdf.set_font("Helvetica", "B", 10)
     
-    # Draw Headers
+    # Draw Table Headers
     pdf.cell(65, 7, "Underwriting Parameter", border=1)
     pdf.cell(40, 7, "Observed Value", border=1)
     pdf.cell(40, 7, "Bank Benchmarks", border=1)
@@ -156,6 +158,7 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
         ("Loan To Value Ratio", f"{metrics_data['ltv']}%", "<= 60.0%", "Pass" if metrics_data['ltv'] <= 60.0 else "Fail"),
     ]
     
+    # FIXED: Maps values straight to table cells, preventing list-to-string format exceptions
     for row in metrics_rows:
         pdf.cell(65, 7, str(row[0]), border=1)
         pdf.cell(40, 7, str(row[1]), border=1)
@@ -180,10 +183,9 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
     if scoring_data["flags"]:
         pdf.ln(3)
         pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 8, "⚠️ 4. CRITICAL OPERATIONAL WARNING NOTES / FLAGS", ln=True)
+        pdf.cell(0, 8, "4. CRITICAL OPERATIONAL WARNING NOTES / FLAGS", ln=True)
         pdf.set_font("Helvetica", "I", 9)
         for flag in scoring_data["flags"]:
             pdf.cell(0, 6, f"- {str(flag)}", ln=True)
             
-    # FIXED: Convert bytearray to a pure, un-nested immutable bytes block
     return bytes(pdf.output())
