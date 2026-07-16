@@ -22,7 +22,9 @@ from underwriting_core import (
     validate_extended_profile
 )
 
+# --- VIEWPORT PAGE CONFIGURATION MATCHING IMAGE ---
 st.set_page_config(page_title="Credit Underwriting Terminal", page_icon="📊", layout="wide")
+
 st.title("🏛️ Commercial Credit Underwriting Dashboard")
 st.subheader("Automated Loan Evaluation Engine — Banks & NBFCs (India)")
 
@@ -37,6 +39,7 @@ if "active_profile" not in st.session_state:
         "pan_ent": True, "gst_ent": True, "biz_ent": True, "br_ent": True, "num_directors": 2, "directors_passed": 2
     }
 
+# --- SIDEBAR INTERFACE ---
 st.sidebar.markdown("### 🗂️ Intake Source Selection")
 upload_mode = st.sidebar.radio("Data Sourcing Mode", ["Manual Intake / API Core Search", "Direct File Upload Package"])
 
@@ -76,6 +79,7 @@ if st.sidebar.button("Fetch Central Database"):
         st.session_state.active_profile = fetched
         st.rerun()
 
+# --- GRID COLUMNS SETUP ---
 col1, col2 = st.columns([1.1, 1.2])
 
 with col1:
@@ -120,19 +124,16 @@ with col1:
         gst_turnover = st.number_input("Annual Sales Declared in GST (INR)", value=prof["gst_turnover"], step=100000.0)
         bank_credits = st.number_input("Total Operational Banking Credits (INR)", value=prof["bank_credits"], step=100000.0)
 
-        # Ensure there is a clean line break exactly after your if/else turnover reconciliation tracking
+        variance_pct = ((bank_credits - gst_turnover) / gst_turnover * 100) if gst_turnover > 0 else 0.0
         if abs(variance_pct) > 10.0:
             st.error(f"⚠️ Turnover Mismatch Detected: {variance_pct:+.2f}%")
         else:
             st.success(f"✅ Turnover Reconciled: {variance_pct:+.2f}%")
-
-# Move 'with col2:' down to its own fresh line with zero indentation
 with col2:
     st.header("⚡ Risk Analysis & System Output")
     dscr, cr_ratio, tol_tnw, ltv = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral)
     
     # 🤖 100% AUTOMATED TRANSACTIONS SCANNER:
-    # Bypasses manual checkboxes. Variables are extracted programmatically from file profiles.
     current_state = {
         "recent_enquiries_30_days": enquiries,
         "frequent_address_changes": prof.get("frequent_address_changes", False),
@@ -142,7 +143,6 @@ with col2:
         "litigation_pending": prof.get("litigation_pending", False)
     }
     
-    # System displays automated risk warnings inside column 2 alert frames
     flags = evaluate_system_red_flags(current_state, variance_pct)
     if flags:
         st.error("⚠️ Automated Red Flags Detected by Engine")
@@ -196,7 +196,7 @@ with col2:
     c_coll = st.text_area("4. Collateral (Coverage)", value=f"Calculated LTV set at {ltv}%.")
     c_cond = st.text_area("5. Conditions (Outlook)", value=f"Sector: '{industry}'.")
 
-    # --- SIDEBAR DOWNLOADE PACKAGE ---
+    # --- SIDEBAR EXPORT PACKAGE HOOK ---
     try:
         meta_p = {"industry": industry, "kyc_cleared": pan_ent and gst_ent}
         metrics_p = {"dscr": dscr, "cr_ratio": cr_ratio, "tol_tnw": tol_tnw, "ltv": ltv}
@@ -209,7 +209,7 @@ with col2:
     except Exception:
         pass
 
-# --- BREAK OUT OF COLUMNS WRAPPER TO RENDER WIDE PLOTS ---
+# --- WIDE FORM PORTFOLIO PLOTS (OUTSIDE OF COLUMN BLOCKS FOR FULL WIDTH) ---
 st.markdown("---")
 st.markdown("### 📊 Interactive Portfolio Plots (Plotly Express Engine)")
 
