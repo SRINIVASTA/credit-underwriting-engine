@@ -11,8 +11,15 @@ app_root_dir = os.path.dirname(os.path.abspath(__file__))
 if app_root_dir not in sys.path:
     sys.path.insert(0, app_root_dir)
 
-# Single line import format cleanly bypasses nested cloud indentation crashes
-from underwriting_core import safe_calculate_metrics, map_pricing_matrix, evaluate_system_red_flags, calculate_pv_amortization, calculate_amortization_schedule, generate_sanction_memo_pdf, fetch_borrower_central_data, validate_extended_profile
+# Flat margin imports prevent mixed whitespace parsing bugs entirely
+from underwriting_core import safe_calculate_metrics
+from underwriting_core import map_pricing_matrix
+from underwriting_core import evaluate_system_red_flags
+from underwriting_core import calculate_pv_amortization
+from underwriting_core import calculate_amortization_schedule
+from underwriting_core import generate_sanction_memo_pdf
+from underwriting_core import fetch_borrower_central_data
+from underwriting_core import validate_extended_profile
 
 # --- VIEWPORT PAGE CONFIGURATION MATCHING IMAGE ---
 st.set_page_config(page_title="Credit Underwriting Terminal", page_icon="📊", layout="wide")
