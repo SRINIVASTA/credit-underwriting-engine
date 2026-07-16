@@ -7,8 +7,8 @@ from fpdf import FPDF
 
 def parse_uploaded_file_stream(uploaded_file):
     """
-    Decodes uploaded files, supporting BOTH structured JSON and tabular CSV matrices.
-    Applies exact type-casting schemas to guarantee mathematical runtime safety.
+    Decodes uploaded files, supporting BOTH horizontal multi-column CSVs 
+    and structured JSON data payloads with strict data validation.
     """
     if uploaded_file is None:
         return None
@@ -16,15 +16,14 @@ def parse_uploaded_file_stream(uploaded_file):
         file_bytes = uploaded_file.read()
         raw_data = {}
 
+        # Parse Engine logic for Horizontal Multi-Column CSVs
         if uploaded_file.name.endswith('.csv'):
             text_stream = io.StringIO(file_bytes.decode("utf-8"))
-            reader = csv.reader(text_stream)
-            next(reader, None) 
+            # Ingests column headers dynamically to map to fields seamlessly
+            reader = csv.DictReader(text_stream)
             for row in reader:
-                if len(row) >= 2:
-                    key = row[0].strip()
-                    val = row[1].strip()
-                    raw_data[key] = val
+                raw_data = row
+                break 
 
         elif uploaded_file.name.endswith('.json'):
             raw_data = json.loads(file_bytes.decode("utf-8"))
@@ -35,6 +34,7 @@ def parse_uploaded_file_stream(uploaded_file):
             if isinstance(v, bool): return v
             return str(v).lower() in ("true", "1", "yes", "t")
 
+        # Core Underwriting Field Schema Mapping Checks
         validated_profile = {
             "industry": str(raw_data.get("industry", "Pharma")),
             "cibil_score": int(float(raw_data.get("cibil_score", 700))),
