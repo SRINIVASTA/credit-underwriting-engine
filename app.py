@@ -119,7 +119,8 @@ with col1:
         directors_passed = st.number_input("Verified Cleared Directors (PAN + Aadhaar Passes)", min_value=0, max_value=int(num_directors), value=safe_passed_val) 
         
     with st.expander("📊 Part 2: Financial Statements & Bureau Checks", expanded=True): 
-        cibil = st.slider("CIBIL Bureau Score", 300, 900, value=int(active_profile["cibil_score"]) if active_profile and "cibil_score" in active_profile else 750) 
+        cibil = st.slider("CIBIL Bureau Score", 300, 900, value=int(active_profile["cibil_score"]) if active_profile else 750, key=f"cibil_slider_{selected_row_idx}" if upload_mode == "Direct File Upload Package" else "cibil_manual")
+        
         enquiries = st.number_input("Bureau Enquiries (Last 30 Days)", min_value=0, max_value=15, value=int(active_profile["recent_enquiries_30_days"]) if active_profile and "recent_enquiries_30_days" in active_profile else 1) 
  
         noi = st.number_input("Net Operating Income (Annual INR)", value=float(active_profile["net_operating_income"]) if active_profile and "net_operating_income" in active_profile else 2200000.0, step=50000.0) 
