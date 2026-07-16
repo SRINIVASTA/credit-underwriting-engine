@@ -144,15 +144,20 @@ with col2:
         # --- EXECUTING THE COMPILATION DOWNLOAD BLOCK ---
         st.sidebar.markdown("---")
         st.sidebar.subheader("📄 Export Sanction Package")
+        
         meta_pkg = {"industry": industry, "kyc_cleared": kyc_cleared}
         metrics_pkg = {"dscr": dscr, "cr_ratio": cr_ratio, "tol_tnw": tol_tnw, "ltv": ltv}
         scoring_pkg = {"score": score, "flags": flags}
         results_pkg = {"req_loan": req_loan, "cash_flow_cap": cash_flow_cap, "asset_cap": asset_cap, "final_sanction": final_sanction, "final_rate": final_rate, "tier_name": tier_name}
         
-        try:
-            pdf_bytes = generate_sanction_memo_pdf(meta_pkg, metrics_pkg, scoring_pkg, results_pkg)
-            st.sidebar.download_button(label="📥 Download Official Sanction PDF", data=pdf_bytes, file_name="Sanction_Memo_Draft.pdf", mime="application/pdf")
-        except Exception: st.sidebar.error("Could not pre-compile download module bundle.")
+        # FIXED: Removed the broad try-except block to let Streamlit output any underlying compilation constraints clearly
+        pdf_bytes = generate_sanction_memo_pdf(meta_pkg, metrics_pkg, scoring_pkg, results_pkg)
+        st.sidebar.download_button(
+            label="📥 Download Official Sanction PDF", 
+            data=pdf_bytes, 
+            file_name="Sanction_Memo_Draft.pdf", 
+            mime="application/pdf"
+        )
 
         # --- PLOTLY DATA VISUALIZATION ENGINE ---
         st.markdown("---")
