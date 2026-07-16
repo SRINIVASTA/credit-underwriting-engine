@@ -10,7 +10,8 @@ from underwriting_core import (
     safe_calculate_metrics, 
     calculate_pv_amortization, 
     map_pricing_matrix, 
-    calculate_amortization_schedule 
+    calculate_amortization_schedule,
+    generate_sanction_memo_pdf  # <-- Restored Core Function Link
 ) 
 
 # --- STREAMLIT UI VIEWPORTS CONFIGURATION --- 
@@ -109,6 +110,7 @@ else:
 
 if not active_profile:
     active_profile = {"industry": "Pharma", "cibil_score": 750, "recent_enquiries_30_days": 1, "net_operating_income": 2200000.0, "annual_debt_service": 1200000.0, "tol": 6000000.0, "tnw": 3500000.0, "current_assets": 2500000.0, "current_liabilities": 1800000.0, "requested_loan": 6500000.0, "collateral_value": 14000000.0, "loan_term": 7, "gst_turnover": 12000000.0, "bank_credits": 12200000.0, "bounces": False, "pan_ent": True, "gst_ent": True, "biz_ent": True, "br_ent": True, "num_directors": 2, "directors_passed": 2}
+}
 # --- LAYOUT VIEWPORTS SETUP ---
 col1, col2 = st.columns([1, 1.2]) 
 
@@ -176,12 +178,9 @@ with col2:
     if tnw <= 0: st.error("⚠️ SYSTEM BALANCE NOTICE: Tangible Net Worth is zero or negative.") 
     if noi <= 0: st.error("🛑 UNDERWRITING HALT: Operating income is negative or zero.") 
     
-    # FIX: Now fully matching the 5 returned variables from underwriting_core.py
     dscr, cr_ratio, tol_tnw, ltv, foir = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral) 
     
-    # CHEAT SHEET FRAUD RED FLAG PENALTY: Deduct points if GST variance mismatch exceeds 10%
     gst_penalty = 10 if (gst_turnover > 0 and abs(variance_pct) > 10.0) else 0
-    # CHEAT SHEET HIGH ENQUIRY PENALTY: Deduct points if background inquiries in 30 days run high
     enq_penalty = 5 if enquiries > 3 else 0
 
     fin_score = max(0, (40 if dscr >= 1.50 else (32 if dscr >= 1.25 else (20 if dscr >= 1.10 else 0))) - gst_penalty) 
@@ -191,7 +190,6 @@ with col2:
     
     score = fin_score + bureau_score + leverage_score + asset_score 
     
-    # Maps pricing matrix and dynamically applies +1.50% high risk sector premium (Real Estate/Startups)
     final_rate, max_ltv, min_dscr, tier_name, tier_type = map_pricing_matrix(score, base_mclr, industry) 
     kyc_cleared = pan_ent and gst_ent and biz_ent and br_ent and (directors_passed == num_directors) 
     
@@ -218,7 +216,6 @@ with col2:
     st.table(score_df) 
     
     st.subheader("💡 Smart Loan Sizing & Risk-Based Pricing") 
-    # POLICY INTEGRATION: Pure mathematical gate directly enforcing your financial rules checklist
     if score < 50 or noi <= 0 or cibil < 650: 
         st.error(f"❌ APPLICATION REJECTED OUTRIGHT — Total Scorecard Grade: {score}/100 (CIBIL Auto-Decline Safe Boundary Applied)") 
     else: 
@@ -247,6 +244,21 @@ with col2:
         st.markdown("---") 
         st.metric(label="📄 FINAL APPROVED SANCTION AMOUNT", value=f"₹{final_sanction:,.2f}") 
         
+        # --- RESTORED EXECUTING THE COMPILATION DOWNLOAD BLOCK --- 
+        st.sidebar.markdown("---") 
+        st.sidebar.subheader("📥 Export Sanction Package") 
+        meta_pkg = {"industry": industry, "kyc_cleared": kyc_cleared} 
+        metrics_pkg = {"dscr": dscr, "cr_ratio": cr_ratio, "tol_tnw": tol_tnw, "ltv": ltv} 
+        scoring_pkg = {"score": score, "flags": flags} 
+        results_pkg = {"req_loan": req_loan, "cash_flow_cap": cash_flow_cap, "asset_cap": asset_cap, "final_sanction": final_sanction, "final_rate": final_rate, "tier_name": tier_name} 
+ 
+        try: 
+            # Calls the standalone class built into underwriting_core.py safely
+            pdf_bytes = generate_sanction_memo_pdf(meta_pkg, metrics_pkg, scoring_pkg, results_pkg) 
+            st.sidebar.download_button(label="📄 Download Official Sanction PDF", data=pdf_bytes, file_name="Sanction_Memo_Draft.pdf", mime="application/pdf", key=f"pdf_btn_idx_{selected_row_idx}") 
+        except Exception: 
+            st.sidebar.error("Could not pre-compile download module bundle.") 
+            
         # --- PLOTLY DATA VISUALIZATION ENGINE --- 
         st.markdown("---") 
         st.subheader("📊 Interactive Portfolio Plots (Plotly Express Engine)") 
