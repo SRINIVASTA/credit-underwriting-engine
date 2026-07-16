@@ -120,11 +120,14 @@ with col1:
         gst_turnover = st.number_input("Annual Sales Declared in GST (INR)", value=prof["gst_turnover"], step=100000.0)
         bank_credits = st.number_input("Total Operational Banking Credits (INR)", value=prof["bank_credits"], step=100000.0)
 
-        variance_pct = ((bank_credits - gst_turnover) / gst_turnover * 100) if gst_turnover > 0 else 0.0
+        # Ensure there is a clean line break exactly after your if/else turnover reconciliation tracking
         if abs(variance_pct) > 10.0:
             st.error(f"⚠️ Turnover Mismatch Detected: {variance_pct:+.2f}%")
         else:
-            st.success(f"✅ Turnover Reconciled: {variance_pct:+.2f}%")with col2:
+            st.success(f"✅ Turnover Reconciled: {variance_pct:+.2f}%")
+
+# Move 'with col2:' down to its own fresh line with zero indentation
+with col2:
     st.header("⚡ Risk Analysis & System Output")
     dscr, cr_ratio, tol_tnw, ltv = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral)
     
