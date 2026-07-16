@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import io
+import csv
+import json
 from underwriting_core import (
-    fetch_borrower_central_data,
+    fetch_Central_data_profile,
     parse_uploaded_file_stream,
     safe_calculate_metrics,
     calculate_pv_amortization,
@@ -25,10 +28,63 @@ if upload_mode == "Direct File Upload Package":
     st.sidebar.markdown("---")
     st.sidebar.subheader("📤 Financial Statement Upload")
     uploaded_file = st.sidebar.file_uploader("Upload Borrower Financial Data Profile", type=["json", "csv"])
+    
     if uploaded_file is not None:
-        active_profile = parse_uploaded_file_stream(uploaded_file)
-        if active_profile: st.sidebar.success(f"Successfully Parsed File: {uploaded_file.name}")
-        else: st.sidebar.error("Could not parse file structure format rules.")
+        try:
+            file_bytes = uploaded_file.getvalue()
+            
+            if uploaded_file.name.endswith('.csv'):
+                text_stream = io.StringIO(file_bytes.decode("utf-8"))
+                reader = list(csv.DictReader(text_stream))
+                total_rows = len(reader)
+                
+                if total_rows > 1:
+                    st.sidebar.info(f"📊 Multi-Row Batch File Identified: Found {total_rows} Accounts.")
+                    selected_row_idx = st.sidebar.selectbox(
+                        "Select Borrower Record to Load",
+                        range(total_rows),
+                        format_func=lambda x: f"Row {x+1}: {reader[x].get('industry', 'Record')} (CIBIL: {reader[x].get('cibil_score', 'N/A')})"
+                    )
+                    
+                    raw_row = reader[selected_row_idx]
+                    cleaned_row = {str(k).strip(): str(v).strip() for k, v in raw_row.items() if k is not None}
+                    
+                    def str_to_bool(v):
+                        return str(v).strip().lower() in ("true", "1", "yes", "t")
+                        
+                    active_profile = {
+                        "industry": str(cleaned_row.get("industry", "Pharma")),
+                        "cibil_score": int(float(cleaned_row.get("cibil_score", 700))),
+                        "recent_enquiries_30_days": int(float(cleaned_row.get("recent_enquiries_30_days", 0))),
+                        "net_operating_income": float(cleaned_row.get("net_operating_income", 0.0)),
+                        "annual_debt_service": float(cleaned_row.get("annual_debt_service", 1.0)),
+                        "tol": float(cleaned_row.get("tol", 0.0)),
+                        "tnw": float(cleaned_row.get("tnw", 1.0)),
+                        "current_assets": float(cleaned_row.get("current_assets", 0.0)),
+                        "current_liabilities": float(cleaned_row.get("current_liabilities", 1.0)),
+                        "requested_loan": float(cleaned_row.get("requested_loan", 0.0)),
+                        "collateral_value": float(cleaned_row.get("collateral_value", 0.0)),
+                        "loan_term": int(float(cleaned_row.get("loan_term", 5))),
+                        "gst_turnover": float(cleaned_row.get("gst_turnover", 0.0)),
+                        "bank_credits": float(cleaned_row.get("bank_credits", 0.0)),
+                        "bounces": str_to_bool(cleaned_row.get("bounces", False)),
+                        "pan_ent": str_to_bool(cleaned_row.get("pan_ent", False)),
+                        "gst_ent": str_to_bool(cleaned_row.get("gst_ent", False)),
+                        "biz_ent": str_to_bool(cleaned_row.get("biz_ent", False)),
+                        "br_ent": str_to_bool(cleaned_row.get("br_ent", False)),
+                        "num_directors": int(float(cleaned_row.get("num_directors", 1))),
+                        "directors_passed": int(float(cleaned_row.get("directors_passed", 0)))
+                    }
+                else:
+                    uploaded_file.seek(0)
+                    active_profile = parse_uploaded_file_stream(uploaded_file)
+            else:
+                uploaded_file.seek(0)
+                active_profile = parse_uploaded_file_stream(uploaded_file)
+                
+            if active_profile: st.sidebar.success(f"Loaded Profile Successfully!")
+        except Exception as e:
+            st.sidebar.error("Error splitting tabular array.")
 else:
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔑 Enterprise API Search Gateway")
@@ -51,14 +107,18 @@ with col1:
         with c2:
             biz_ent = st.checkbox("Udyam/Shop Act Provided", value=active_profile["biz_ent"] if active_profile and "biz_ent" in active_profile else True)
             br_ent = st.checkbox("Board Resolution Present", value=active_profile["br_ent"] if active_profile and "br_ent" in active_profile else True)
-        num_directors = st.number_input("Number of Corporate Directors", min_value=1, max_value=5, value=active_profile["num_directors"] if active_profile and "num_directors" in active_profile else 2)
-        directors_passed = st.number_input("Verified Cleared Directors (PAN + Aadhaar Passes)", min_value=0, max_value=int(num_directors), value=active_profile["directors_passed"] if active_profile and "directors_passed" in active_profile else int(num_directors))
+        
+        p_num_dir = int(active_profile["num_directors"]) if active_profile and "num_directors" in active_profile else 2
+        p_pass_dir = int(active_profile["directors_passed"]) if active_profile and "directors_passed" in active_profile else 2
+        
+        num_directors = st.number_input("Number of Corporate Directors", min_value=1, max_value=10, value=p_num_dir)
+        safe_passed_val = min(p_pass_dir, int(num_directors))
+        directors_passed = st.number_input("Verified Cleared Directors (PAN + Aadhaar Passes)", min_value=0, max_value=int(num_directors), value=safe_passed_val)
 
     with st.expander("📈 Part 2: Financial Statements & Bureau Checks", expanded=True):
-        cibil = st.slider("CIBIL Bureau Score", 300, 900, value=active_profile["cibil_score"] if active_profile and "cibil_score" in active_profile else 750)
-        enquiries = st.number_input("Bureau Enquiries (Last 30 Days)", min_value=0, max_value=15, value=active_profile["recent_enquiries_30_days"] if active_profile and "recent_enquiries_30_days" in active_profile else 1)
+        cibil = st.slider("CIBIL Bureau Score", 300, 900, value=int(active_profile["cibil_score"]) if active_profile and "cibil_score" in active_profile else 750)
+        enquiries = st.number_input("Bureau Enquiries (Last 30 Days)", min_value=0, max_value=15, value=int(active_profile["recent_enquiries_30_days"]) if active_profile and "recent_enquiries_30_days" in active_profile else 1)
         
-        # ALL FIXED FIELDS: Explicit floats locked into default parameters to prevent crashes
         noi = st.number_input("Net Operating Income (Annual INR)", value=float(active_profile["net_operating_income"]) if active_profile and "net_operating_income" in active_profile else 2200000.0, step=50000.0)
         annual_debt_service = st.number_input("Current Annual Debt Service (INR)", min_value=0.0, value=float(active_profile["annual_debt_service"]) if active_profile and "annual_debt_service" in active_profile else 1200000.0, step=50000.0)
         tol = st.number_input("Total Outside Liabilities (TOL INR)", min_value=0.0, value=float(active_profile["tol"]) if active_profile and "tol" in active_profile else 6000000.0, step=100000.0)
@@ -69,11 +129,11 @@ with col1:
     with st.expander("💸 Part 3: Loan Proposal Structure", expanded=True):
         req_loan = st.number_input("Requested Term Loan Facility (INR)", min_value=0.0, value=float(active_profile["requested_loan"]) if active_profile and "requested_loan" in active_profile else 6500000.0, step=100000.0)
         collateral = st.number_input("Appraised Collateral Market Value (INR)", min_value=0.0, value=float(active_profile["collateral_value"]) if active_profile and "collateral_value" in active_profile else 14000000.0, step=100000.0)
-        loan_term = st.slider("Loan Tenure (Years)", 1, 10, value=active_profile["loan_term"] if active_profile and "loan_term" in active_profile else 7)
+        loan_term = st.slider("Loan Tenure (Years)", 1, 10, value=int(active_profile["loan_term"]) if active_profile and "loan_term" in active_profile else 7)
         base_mclr = st.number_input("Bank Benchmark Base Rate (MCLR %)", min_value=0.0, max_value=20.0, value=8.50, step=0.1)
         
         st.markdown("**Tax & Banking Consistency Checks**")
-        gst_turnover = st.number_input("Annual Sales Declared in GST (INR)", min_value=0.0, value=float(active_profile["gst_turnover"]) if active_profile and "gst_turnover" in active_profile else 12000000.0, step=100000.0)
+        gst_turnover = st.number_input("Annual Sales Declared in GST (INR)", min_value=0.0, value=float(active_profile["gst_turnover"]) if active_profile else 12000000.0, step=100000.0)
         bank_credits = st.number_input("Total Operational Banking Credits (INR)", min_value=0.0, value=float(active_profile["bank_credits"]) if active_profile and "bank_credits" in active_profile else 12200000.0, step=100000.0)
         bounces = st.checkbox("Any Cheque / EMI Bounces in Last 12 Months?", value=active_profile["bounces"] if active_profile and "bounces" in active_profile else False)
         
