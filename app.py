@@ -22,10 +22,8 @@ from underwriting_core import (
     validate_extended_profile
 )
 
-# --- VIEWPORT PAGE CONFIGURATION MATCHING IMAGE ---
 st.set_page_config(page_title="Credit Underwriting Terminal", page_icon="📊", layout="wide")
-
-st.title("Commercial Credit Underwriting Dashboard")
+st.title("🏛️ Commercial Credit Underwriting Dashboard")
 st.subheader("Automated Loan Evaluation Engine — Banks & NBFCs (India)")
 
 if "active_profile" not in st.session_state:
@@ -39,13 +37,12 @@ if "active_profile" not in st.session_state:
         "pan_ent": True, "gst_ent": True, "biz_ent": True, "br_ent": True, "num_directors": 2, "directors_passed": 2
     }
 
-# --- SIDEBAR INTERFACE ---
-st.sidebar.markdown("### Intake Source Selection")
+st.sidebar.markdown("### 🗂️ Intake Source Selection")
 upload_mode = st.sidebar.radio("Data Sourcing Mode", ["Manual Intake / API Core Search", "Direct File Upload Package"])
 
 if upload_mode == "Direct File Upload Package":
     st.sidebar.markdown("---")
-    st.sidebar.subheader("Tabular Document Intake")
+    st.sidebar.subheader("📥 Tabular Document Intake")
     uploaded_file = st.sidebar.file_uploader("Upload Borrower Financial Data Profile", type=["csv"])
     
     if uploaded_file is not None:
@@ -56,7 +53,7 @@ if upload_mode == "Direct File Upload Package":
             total_rows = len(reader)
             
             if total_rows >= 1:
-                st.sidebar.info(f"Multi-Row Batch File Identified: Found {total_rows} Accounts.")
+                st.sidebar.info(f"📋 Multi-Row Batch File Identified: Found {total_rows} Accounts.")
                 selected_row_idx = st.sidebar.selectbox(
                     "Select Borrower Record to Load",
                     range(total_rows),
@@ -64,14 +61,14 @@ if upload_mode == "Direct File Upload Package":
                 )
                 raw_row = reader[selected_row_idx]
                 st.session_state.active_profile = validate_extended_profile(raw_row)
-                st.sidebar.success(f"Loaded Profile {selected_row_idx+1} Into Context!")
+                st.sidebar.success(f"✅ Loaded Profile {selected_row_idx+1} Into Engine Context!")
         except Exception:
             st.sidebar.error("Error parsing tabular array layout.")
 
 prof = st.session_state.active_profile
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### Enterprise API Search Gateway")
+st.sidebar.markdown("### 🔑 Enterprise API Search Gateway")
 borrower_id = st.sidebar.text_input("Central Borrower Registration ID (PAN / Corporate ID)", placeholder="e.g., BR-95482-X")
 if st.sidebar.button("Fetch Central Database"):
     fetched = fetch_borrower_central_data(borrower_id)
@@ -79,15 +76,12 @@ if st.sidebar.button("Fetch Central Database"):
         st.session_state.active_profile = fetched
         st.rerun()
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### Export Sanction Package")
-
 col1, col2 = st.columns([1.1, 1.2])
 
 with col1:
-    st.header("Borrower & Entity Intake")
+    st.header("📋 Borrower & Entity Intake")
     
-    with st.expander("Part 1: Corporate Registration & KYC", expanded=True):
+    with st.expander("📝 Part 1: Corporate Registration & KYC", expanded=True):
         industry_list = ["Pharma", "FMCG", "Healthcare", "Textile", "Real Estate", "Startup"]
         default_idx = industry_list.index(prof["industry"]) if prof["industry"] in industry_list else 0
         industry = st.selectbox("Industry Classification", industry_list, index=default_idx)
@@ -104,9 +98,9 @@ with col1:
         with c3:
             num_directors = st.number_input("Number of Corporate Directors", min_value=1, value=prof["num_directors"])
         with c4:
-            directors_passed = st.number_input("Verified Cleared Directors (PAN + Aadhaar Passes)", min_value=0, value=prof["directors_passed"])
+            directors_passed = st.number_input("Verified Cleared Directors Passes", min_value=0, value=prof["directors_passed"])
 
-    with st.expander("Part 2: Financial Statements & Bureau Checks", expanded=True):
+    with st.expander("📊 Part 2: Financial Statements & Bureau Checks", expanded=True):
         cibil = st.slider("CIBIL Bureau Score", 300, 900, value=prof["cibil_score"])
         enquiries = st.number_input("Bureau Enquiries (Last 30 Days)", min_value=0, value=prof["recent_enquiries_30_days"])
         noi = st.number_input("Net Operating Income (Annual INR)", value=prof["net_operating_income"], step=50000.0)
@@ -116,7 +110,7 @@ with col1:
         ca = st.number_input("Current Assets (INR)", value=prof["current_assets"], step=50000.0)
         cl = st.number_input("Current Liabilities (INR)", value=prof["current_liabilities"], step=50000.0)
 
-    with st.expander("Part 3: Loan Proposal Structure", expanded=True):
+    with st.expander("📈 Part 3: Loan Proposal Structure", expanded=True):
         req_loan = st.number_input("Requested Term Loan Facility (INR)", value=prof["requested_loan"], step=100000.0)
         collateral = st.number_input("Appraised Collateral Market Value (INR)", value=prof["collateral_value"], step=100000.0)
         loan_term = st.slider("Loan Tenure (Years)", 1, 10, value=prof["loan_term"])
@@ -125,36 +119,33 @@ with col1:
         st.markdown("**Tax & Banking Consistency Checks**")
         gst_turnover = st.number_input("Annual Sales Declared in GST (INR)", value=prof["gst_turnover"], step=100000.0)
         bank_credits = st.number_input("Total Operational Banking Credits (INR)", value=prof["bank_credits"], step=100000.0)
-        
-        bounces = st.checkbox("Any Cheque / EMI Bounces in Last 12 Months?", value=prof["bounces"])
-        overdrawn_od = st.checkbox("Chronically Overdrawn OD / CC Account?", value=prof["overdrawn_od"])
-        frequent_address_changes = st.checkbox("Frequent Address / Director Changes?", value=prof["frequent_address_changes"])
-        large_cash_deposits = st.checkbox("Unusual Large Cash Deposits Identified?", value=prof["large_cash_deposits"])
-        litigation_pending = st.checkbox("Pending Lawsuits / Litigation on Property?", value=prof["litigation_pending"])
 
         variance_pct = ((bank_credits - gst_turnover) / gst_turnover * 100) if gst_turnover > 0 else 0.0
         if abs(variance_pct) > 10.0:
-            st.error(f"Turnover Mismatch Detected: {variance_pct:+.2f}%")
+            st.error(f"⚠️ Turnover Mismatch Detected: {variance_pct:+.2f}%")
         else:
-            st.success(f"Turnover Reconciled: {variance_pct:+.2f}%")
-with col2:
+            st.success(f"✅ Turnover Reconciled: {variance_pct:+.2f}%")with col2:
     st.header("⚡ Risk Analysis & System Output")
-    
-    # Process core calculation engine
     dscr, cr_ratio, tol_tnw, ltv = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral)
     
+    # 🤖 100% AUTOMATED TRANSACTIONS SCANNER:
+    # Bypasses manual checkboxes. Variables are extracted programmatically from file profiles.
     current_state = {
-        "recent_enquiries_30_days": enquiries, "frequent_address_changes": frequent_address_changes,
-        "bounces": bounces, "overdrawn_od": overdrawn_od, "large_cash_deposits": large_cash_deposits,
-        "gst_turnover": gst_turnover, "bank_credits": bank_credits, "litigation_pending": litigation_pending
+        "recent_enquiries_30_days": enquiries,
+        "frequent_address_changes": prof.get("frequent_address_changes", False),
+        "bounces": prof.get("bounces", False),
+        "overdrawn_od": prof.get("overdrawn_od", False),
+        "large_cash_deposits": prof.get("large_cash_deposits", False),
+        "litigation_pending": prof.get("litigation_pending", False)
     }
     
+    # System displays automated risk warnings inside column 2 alert frames
     flags = evaluate_system_red_flags(current_state, variance_pct)
     if flags:
-        st.error("⚠️ Critical Red Flags Triggered")
+        st.error("⚠️ Automated Red Flags Detected by Engine")
         for flag in flags: st.markdown(f"- {flag}")
     else:
-        st.success("✅ Behavioral Records Clear: No Operational Red Flags Detected")
+        st.success("✅ Machine Screening Confirmed Clear: No Operational Red Flags Detected")
 
     # --- SCORECARD SECTION ---
     st.markdown("### 📊 100-Point Internal Risk Scorecard")
@@ -181,7 +172,7 @@ with col2:
     cash_flow_cap = calculate_pv_amortization(max_annual_ds, final_rate, loan_term)
     asset_cap = collateral * (max_ltv / 100.0) if collateral > 0 else 0.0
     max_eligible_loan = min(cash_flow_cap, asset_cap) if collateral > 0 else cash_flow_cap
-    final_sanction = min(max_eligible_loan, req_loan) if (score >= 50 and not litigation_pending) else 0.0
+    final_sanction = min(max_eligible_loan, req_loan) if (score >= 50 and not prof.get("litigation_pending", False)) else 0.0
 
     m1, m2 = st.columns(2)
     with m1:
@@ -202,7 +193,7 @@ with col2:
     c_coll = st.text_area("4. Collateral (Coverage)", value=f"Calculated LTV set at {ltv}%.")
     c_cond = st.text_area("5. Conditions (Outlook)", value=f"Sector: '{industry}'.")
 
-    # --- SIDEBAR DOWNLOAD ATTACHMENT HOOK ---
+    # --- SIDEBAR DOWNLOADE PACKAGE ---
     try:
         meta_p = {"industry": industry, "kyc_cleared": pan_ent and gst_ent}
         metrics_p = {"dscr": dscr, "cr_ratio": cr_ratio, "tol_tnw": tol_tnw, "ltv": ltv}
@@ -215,35 +206,20 @@ with col2:
     except Exception:
         pass
 
-# ==============================================================================
-# --- CRITICAL FIX: BREAK OUT OF COLUMNS WRAPPER TO RENDER FULL WIDTH PLOTS ---
-# ==============================================================================
+# --- BREAK OUT OF COLUMNS WRAPPER TO RENDER WIDE PLOTS ---
 st.markdown("---")
 st.markdown("### 📊 Interactive Portfolio Plots (Plotly Express Engine)")
 
-# 1. Horizontal exposure boundaries bar chart
 categories = ["Requested Facility", "Cash Flow Ceiling", "Collateral Ceiling", "Final Approved Sanction"]
 amounts = [req_loan, cash_flow_cap, asset_cap, final_sanction]
 
-fig_bars = go.Figure(go.Bar(
-    x=amounts, y=categories, orientation='h',
-    marker=dict(color=['#636EFA', '#EF553B', '#00CC96', '#AB63FA'])
-))
-fig_bars.update_layout(
-    title="Loan Proposal vs Underwriting Exposure Ceilings",
-    xaxis_title="Amount (INR)", yaxis_title="Evaluation Segment", 
-    height=320, margin=dict(l=20, r=20, t=40, b=20)
-)
+fig_bars = go.Figure(go.Bar(x=amounts, y=categories, orientation='h', marker=dict(color=['#636EFA', '#EF553B', '#00CC96', '#AB63FA'])))
+fig_bars.update_layout(title="Loan Proposal vs Underwriting Exposure Ceilings", xaxis_title="Amount (INR)", yaxis_title="Evaluation Segment", height=320, margin=dict(l=20, r=20, t=40, b=20))
 st.plotly_chart(fig_bars, use_container_width=True)
 
-# 2. Complete long-term runway amortization line graph 
 years, balances, cumulative_interest = calculate_amortization_schedule(final_sanction, final_rate, loan_term)
 fig_line = go.Figure()
 fig_line.add_trace(go.Scatter(x=years, y=balances, mode='lines+markers', name='Principal Outstanding', line=dict(color='#EF553B', width=3)))
 fig_line.add_trace(go.Scatter(x=years, y=cumulative_interest, mode='lines+markers', name='Cumulative Interest Paid', line=dict(color='#636EFA', width=3, dash='dash')))
-fig_line.update_layout(
-    title=f"{loan_term}-Year Runway Loan Amortization Track",
-    xaxis_title="Loan Timeline Milestone", yaxis_title="Capital Balance (INR)",
-    height=380, margin=dict(l=20, r=20, t=40, b=20)
-)
+fig_line.update_layout(title=f"{loan_term}-Year Runway Loan Amortization Track", xaxis_title="Loan Timeline Milestone", yaxis_title="Capital Balance (INR)", height=350, margin=dict(l=20, r=20, t=40, b=20))
 st.plotly_chart(fig_line, use_container_width=True)
