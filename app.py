@@ -187,16 +187,16 @@ with col2:
     if tnw <= 0: st.error("⚠️ SYSTEM BALANCE NOTICE: Tangible Net Worth is zero or negative.") 
     if noi <= 0: st.error("🛑 UNDERWRITING HALT: Operating income is negative or zero.") 
     
-    # Synchronized unpacking line capturing the 5 parameters from underwriting_core
-    dscr, cr_ratio, tol_tnw, ltv, foir = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral) 
+    # CORRECTED PACKAGING: Passes qualitative grades from sliders and unpacks all 6 structural parameters cleanly
+    dscr, cr_ratio, tol_tnw, ltv, foir, qualitative_modifier = safe_calculate_metrics(
+        noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral, character_grade, conditions_grade
+    ) 
     
-    # CHEAT SHEET SCORING PENALTIES: Score compression rules derived from fraud red flags
     gst_penalty = 10 if (gst_turnover > 0 and abs(variance_pct) > 10.0) else 0
     enq_penalty = 5 if enquiries > 3 else 0
     
-    # CHEAT SHEET 5 Cs MODIFIER: Shave 15 points off if qualitative sliders dip below baseline thresholds
-    qualitative_penalty = 15 if (character_grade < 5 or conditions_grade < 5) else 0
-    # HARD CRITICAL BLOCKS: Heavy penalty if legal litigation or loop transaction checks fire
+    # Dynamic point modifiers driven completely by your sheet's risk frameworks
+    qualitative_penalty = abs(qualitative_modifier)
     fraud_penalty = 20 if (litigation_flag or circular_flag) else 0
 
     fin_score = max(0, (40 if dscr >= 1.50 else (32 if dscr >= 1.25 else (20 if dscr >= 1.10 else 0))) - gst_penalty) 
@@ -204,8 +204,9 @@ with col2:
     leverage_score = 15 if tol_tnw <= 2.00 and tnw > 0 else (11 if tol_tnw <= 3.00 and tnw > 0 else (6 if tol_tnw <= 4.50 and tnw > 0 else 0)) 
     asset_score = 15 if ltv <= 50.0 and collateral > 0 else (12 if ltv <= 60.0 and collateral > 0 else (7 if ltv <= 75.0 and collateral > 0 else 0)) 
     
-    # Aggregate scorecard calculation including premium modifiers
     score = max(0, fin_score + bureau_score + leverage_score + asset_score - qualitative_penalty - fraud_penalty) 
+    
+    # ... rest of your Block 3 code remains completely identical
     
     # Maps pricing and dynamically loads the +1.50% yield premium penalty for Real Estate / Construction / Startups
     final_rate, max_ltv, min_dscr, tier_name, tier_type = map_pricing_matrix(score, base_mclr, industry) 
