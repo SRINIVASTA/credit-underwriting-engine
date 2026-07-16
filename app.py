@@ -11,16 +11,8 @@ app_root_dir = os.path.dirname(os.path.abspath(__file__))
 if app_root_dir not in sys.path:
     sys.path.insert(0, app_root_dir)
 
-from underwriting_core import (
-    safe_calculate_metrics,
-    map_pricing_matrix,
-    evaluate_system_red_flags,
-    calculate_pv_amortization,
-    calculate_amortization_schedule,
-    generate_sanction_memo_pdf,
-    fetch_borrower_central_data,
-    validate_extended_profile
-)
+# Single line import format cleanly bypasses nested cloud indentation crashes
+from underwriting_core import safe_calculate_metrics, map_pricing_matrix, evaluate_system_red_flags, calculate_pv_amortization, calculate_amortization_schedule, generate_sanction_memo_pdf, fetch_borrower_central_data, validate_extended_profile
 
 # --- VIEWPORT PAGE CONFIGURATION MATCHING IMAGE ---
 st.set_page_config(page_title="Credit Underwriting Terminal", page_icon="📊", layout="wide")
@@ -133,7 +125,7 @@ with col2:
     st.header("⚡ Risk Analysis & System Output")
     dscr, cr_ratio, tol_tnw, ltv = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral)
     
-    # 🤖 100% AUTOMATED TRANSACTIONS SCANNER:
+    # 🤖 100% AUTOMATED TRANSACTIONS CHECKPOINTS:
     current_state = {
         "recent_enquiries_30_days": enquiries,
         "frequent_address_changes": prof.get("frequent_address_changes", False),
@@ -209,7 +201,7 @@ with col2:
     except Exception:
         pass
 
-# --- WIDE FORM PORTFOLIO PLOTS (OUTSIDE OF COLUMN BLOCKS FOR FULL WIDTH) ---
+# --- WIDE FORM PORTFOLIO PLOTS (OUTSIDE OF COLUMNS FOR FULL WIDTH) ---
 st.markdown("---")
 st.markdown("### 📊 Interactive Portfolio Plots (Plotly Express Engine)")
 
