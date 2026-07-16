@@ -110,7 +110,6 @@ else:
 
 if not active_profile:
     active_profile = {"industry": "Pharma", "cibil_score": 750, "recent_enquiries_30_days": 1, "net_operating_income": 2200000.0, "annual_debt_service": 1200000.0, "tol": 6000000.0, "tnw": 3500000.0, "current_assets": 2500000.0, "current_liabilities": 1800000.0, "requested_loan": 6500000.0, "collateral_value": 14000000.0, "loan_term": 7, "gst_turnover": 12000000.0, "bank_credits": 12200000.0, "bounces": False, "pan_ent": True, "gst_ent": True, "biz_ent": True, "br_ent": True, "num_directors": 2, "directors_passed": 2}
-}
 # --- LAYOUT VIEWPORTS SETUP ---
 col1, col2 = st.columns([1, 1.2]) 
 
