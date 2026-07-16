@@ -37,7 +37,14 @@ if upload_mode == "Direct File Upload Package":
  
             if uploaded_file.name.endswith('.csv'): 
                 text_stream = io.StringIO(file_bytes.decode("utf-8")) 
-                reader = list(csv.DictReader(text_stream)) 
+                raw_reader = list(csv.DictReader(text_stream)) 
+                
+                # AGENTIC DIRECTIVE: Force complete key lowercase normalization across EVERY row instantly
+                reader = []
+                for row in raw_reader:
+                    cleaned_row = {str(k).strip().lower(): str(v).strip() for k, v in row.items() if k is not None}
+                    reader.append(cleaned_row)
+                
                 total_rows = len(reader) 
  
                 if total_rows > 1: 
@@ -45,38 +52,36 @@ if upload_mode == "Direct File Upload Package":
                     selected_row_idx = st.sidebar.selectbox( 
                         "Select Borrower Record to Load", 
                         range(total_rows), 
-                        format_func=lambda x: f"Row {x+1}: {reader[x].get('Industry', reader[x].get('industry', 'Record'))} (CIBIL: {reader[x].get('cibil_score', 'N/A')})" 
+                        format_func=lambda x: f"Row {x+1}: {reader[x].get('industry', 'Record')} (CIBIL: {reader[x].get('cibil_score', 'N/A')})" 
                     ) 
  
-                    raw_row = reader[selected_row_idx] 
-                    # Normalize keys to lowercase to guard against mixed CSV header naming variations
-                    cleaned_row = {str(k).strip().lower(): str(v).strip() for k, v in raw_row.items() if k is not None} 
+                    active_row = reader[selected_row_idx] 
  
                     def str_to_bool(v): 
                         return str(v).strip().lower() in ("true", "1", "yes", "t") 
  
                     active_profile = { 
-                        "industry": str(cleaned_row.get("industry", "Pharma")), 
-                        "cibil_score": int(float(cleaned_row.get("cibil_score", 700))), 
-                        "recent_enquiries_30_days": int(float(cleaned_row.get("recent_enquiries_30_days", 0))), 
-                        "net_operating_income": float(cleaned_row.get("net_operating_income", 0.0)), 
-                        "annual_debt_service": float(cleaned_row.get("annual_debt_service", 1.0)), 
-                        "tol": float(cleaned_row.get("tol", 0.0)), 
-                        "tnw": float(cleaned_row.get("tnw", 1.0)), 
-                        "current_assets": float(cleaned_row.get("current_assets", 0.0)), 
-                        "current_liabilities": float(cleaned_row.get("current_liabilities", 1.0)), 
-                        "requested_loan": float(cleaned_row.get("requested_loan", 0.0)), 
-                        "collateral_value": float(cleaned_row.get("collateral_value", 0.0)), 
-                        "loan_term": int(float(cleaned_row.get("loan_term", 5))), 
-                        "gst_turnover": float(cleaned_row.get("gst_turnover", 0.0)), 
-                        "bank_credits": float(cleaned_row.get("bank_credits", 0.0)), 
-                        "bounces": str_to_bool(cleaned_row.get("bounces", False)), 
-                        "pan_ent": str_to_bool(cleaned_row.get("pan_ent", False)), 
-                        "gst_ent": str_to_bool(cleaned_row.get("gst_ent", False)), 
-                        "biz_ent": str_to_bool(cleaned_row.get("biz_ent", False)), 
-                        "br_ent": str_to_bool(cleaned_row.get("br_ent", False)), 
-                        "num_directors": int(float(cleaned_row.get("num_directors", 1))), 
-                        "directors_passed": int(float(cleaned_row.get("directors_passed", 0))) 
+                        "industry": str(active_row.get("industry", "Pharma")), 
+                        "cibil_score": int(float(active_row.get("cibil_score", 700))), 
+                        "recent_enquiries_30_days": int(float(active_row.get("recent_enquiries_30_days", 0))), 
+                        "net_operating_income": float(active_row.get("net_operating_income", 0.0)), 
+                        "annual_debt_service": float(active_row.get("annual_debt_service", 1.0)), 
+                        "tol": float(active_row.get("tol", 0.0)), 
+                        "tnw": float(active_row.get("tnw", 1.0)), 
+                        "current_assets": float(active_row.get("current_assets", 0.0)), 
+                        "current_liabilities": float(active_row.get("current_liabilities", 1.0)), 
+                        "requested_loan": float(active_row.get("requested_loan", 0.0)), 
+                        "collateral_value": float(active_row.get("collateral_value", 0.0)), 
+                        "loan_term": int(float(active_row.get("loan_term", 5))), 
+                        "gst_turnover": float(active_row.get("gst_turnover", 0.0)), 
+                        "bank_credits": float(active_row.get("bank_credits", 0.0)), 
+                        "bounces": str_to_bool(active_row.get("bounces", False)), 
+                        "pan_ent": str_to_bool(active_row.get("pan_ent", False)), 
+                        "gst_ent": str_to_bool(active_row.get("gst_ent", False)), 
+                        "biz_ent": str_to_bool(active_row.get("biz_ent", False)), 
+                        "br_ent": str_to_bool(active_row.get("br_ent", False)), 
+                        "num_directors": int(float(active_row.get("num_directors", 1))), 
+                        "directors_passed": int(float(active_row.get("directors_passed", 0))) 
                     } 
                 else: 
                     uploaded_file.seek(0) 
@@ -88,7 +93,7 @@ if upload_mode == "Direct File Upload Package":
             if active_profile: 
                 st.sidebar.success("Loaded Profile Successfully!") 
         except Exception as e: 
-            st.sidebar.error("Error splitting tabular array.") 
+            st.sidebar.error(f"Error processing batch layout: {str(e)}") 
 else: 
     st.sidebar.markdown("---") 
     st.sidebar.subheader("🔑 Enterprise API Search Gateway") 
