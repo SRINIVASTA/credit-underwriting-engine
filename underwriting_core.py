@@ -131,9 +131,9 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 8, "1. EXECUTIVE LOAN PROFILE SUMMARY", ln=True)
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(95, 6, f"Target Industry Sector: {meta_data['industry']}")
-    pdf.cell(95, 6, f"Evaluated Scoring Grade: {scoring_data['score']} / 100 Points", ln=True)
-    pdf.cell(95, 6, f"Risk Tier Assigned: {results_data['tier_name']}")
+    pdf.cell(95, 6, f"Target Industry Sector: {str(meta_data['industry'])}")
+    pdf.cell(95, 6, f"Evaluated Scoring Grade: {str(scoring_data['score'])} / 100 Points", ln=True)
+    pdf.cell(95, 6, f"Risk Tier Assigned: {str(results_data['tier_name'])}")
     pdf.cell(95, 6, f"KYC Compliance Track: {'PASSED' if meta_data['kyc_cleared'] else 'FAILED/HOLD'}", ln=True)
     pdf.ln(5)
 
@@ -156,12 +156,11 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
         ("Loan To Value Ratio", f"{metrics_data['ltv']}%", "<= 60.0%", "Pass" if metrics_data['ltv'] <= 60.0 else "Fail"),
     ]
     
-    # FIXED LOOP: Correct object indexing maps row components into individual cells safely
     for row in metrics_rows:
-        pdf.cell(65, 7, row[0], border=1)
-        pdf.cell(40, 7, row[1], border=1)
-        pdf.cell(40, 7, row[2], border=1)
-        pdf.cell(45, 7, row[3], border=1, ln=True)
+        pdf.cell(65, 7, str(row[0]), border=1)
+        pdf.cell(40, 7, str(row[1]), border=1)
+        pdf.cell(40, 7, str(row[2]), border=1)
+        pdf.cell(45, 7, str(row[3]), border=1, ln=True)
     pdf.ln(5)
 
     # 3. Final Portfolio Allocation Resolutions
@@ -184,7 +183,7 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
         pdf.cell(0, 8, "⚠️ 4. CRITICAL OPERATIONAL WARNING NOTES / FLAGS", ln=True)
         pdf.set_font("Helvetica", "I", 9)
         for flag in scoring_data["flags"]:
-            pdf.cell(0, 6, f"- {flag}", ln=True)
+            pdf.cell(0, 6, f"- {str(flag)}", ln=True)
             
-    # FIXED RETURN: Transmits a clean binary byte stream directly to Streamlit
+    # FIXED: Convert bytearray to a pure, un-nested immutable bytes block
     return bytes(pdf.output())
