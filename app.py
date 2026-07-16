@@ -6,24 +6,15 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# Clean root folder resolution parameters matching agentic systems
+# Set root runtime folder explicitly
 app_root_dir = os.path.dirname(os.path.abspath(__file__))
 if app_root_dir not in sys.path:
     sys.path.insert(0, app_root_dir)
 
-# Clean single line marginal statements eliminate whitespace corruption loops
-from underwriting_core import safe_calculate_metrics
-from underwriting_core import map_pricing_matrix
-from underwriting_core import evaluate_system_red_flags
-from underwriting_core import calculate_pv_amortization
-from underwriting_core import calculate_amortization_schedule
-from underwriting_core import generate_sanction_memo_pdf
-from underwriting_core import fetch_borrower_central_data
-from underwriting_core import validate_extended_profile
+# Import the module as a single object to bypass line syntax parsing bugs completely
+import underwriting_core
 
-# --- VIEWPORT PAGE CONFIGURATION MATCHING IMAGE ---
 st.set_page_config(page_title="Credit Underwriting Terminal", page_icon="📊", layout="wide")
-
 st.title("🏛️ Commercial Credit Underwriting Dashboard")
 st.subheader("Automated Loan Evaluation Engine — Banks & NBFCs (India)")
 
@@ -38,7 +29,6 @@ if "active_profile" not in st.session_state:
         "pan_ent": True, "gst_ent": True, "biz_ent": True, "br_ent": True, "num_directors": 2, "directors_passed": 2
     }
 
-# --- SIDEBAR INTERFACE ---
 st.sidebar.markdown("### 🗂️ Intake Source Selection")
 upload_mode = st.sidebar.radio("Data Sourcing Mode", ["Manual Intake / API Core Search", "Direct File Upload Package"])
 
@@ -57,7 +47,8 @@ if upload_mode == "Direct File Upload Package":
                     range(len(reader)),
                     format_func=lambda x: f"Row {x+1}: {reader[x].get('industry', 'Record')} (CIBIL: {reader[x].get('cibil_score', 'N/A')})"
                 )
-                st.session_state.active_profile = validate_extended_profile(reader[selected_row_idx])
+                raw_row = reader[selected_row_idx]
+                st.session_state.active_profile = underwriting_core.validate_extended_profile(raw_row)
                 st.sidebar.success(f"✅ Loaded Profile {selected_row_idx+1} Into Engine Context!")
         except Exception:
             st.sidebar.error("Error parsing tabular array layout.")
@@ -68,7 +59,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔑 Enterprise API Search Gateway")
 borrower_id = st.sidebar.text_input("Central Borrower Registration ID (PAN / Corporate ID)", placeholder="e.g., BR-95482-X")
 if st.sidebar.button("Fetch Central Database"):
-    fetched = fetch_borrower_central_data(borrower_id)
+    fetched = underwriting_core.fetch_borrower_central_data(borrower_id)
     if fetched:
         st.session_state.active_profile = fetched
         st.rerun()
@@ -117,9 +108,11 @@ with col1:
         if abs(variance_pct) > 10.0:
             st.error(f"⚠️ Turnover Mismatch Detected: {variance_pct:+.2f}%")
         else:
-            st.success(f"✅ Turnover Reconciled: {variance_pct:+.2f}%")with col2:
+            st.success(f"✅ Turnover Reconciled: {variance_pct:+.2f}%")
+
+with col2:
     st.header("⚡ Risk Analysis & System Output")
-    dscr, cr_ratio, tol_tnw, ltv = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral)
+    dscr, cr_ratio, tol_tnw, ltv = underwriting_core.safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral)
     current_state = {
         "recent_enquiries_30_days": enquiries,
         "frequent_address_changes": prof.get("frequent_address_changes", False),
@@ -128,7 +121,7 @@ with col1:
         "large_cash_deposits": prof.get("large_cash_deposits", False),
         "litigation_pending": prof.get("litigation_pending", False)
     }
-    flags = evaluate_system_red_flags(current_state, variance_pct)
+    flags = underwriting_core.evaluate_system_red_flags(current_state, variance_pct)
     if flags:
         st.error("⚠️ Automated Red Flags Detected by Engine")
         for flag in flags: st.markdown(f"- {flag}")
@@ -151,10 +144,10 @@ with col1:
 
     st.markdown("### 💰 Smart Loan Sizing & Risk-Based Pricing")
     st.metric(label="Calculated Internal Risk Grade Score", value=f"{score} / 100 Points")
-    final_rate, max_ltv, min_dscr, tier_name, tier_type = map_pricing_matrix(score, base_mclr)
+    final_rate, max_ltv, min_dscr, tier_name, tier_type = underwriting_core.map_pricing_matrix(score, base_mclr)
     
     max_annual_ds = noi / min_dscr if min_dscr > 0 else noi
-    cash_flow_cap = calculate_pv_amortization(max_annual_ds, final_rate, loan_term)
+    cash_flow_cap = underwriting_core.calculate_pv_amortization(max_annual_ds, final_rate, loan_term)
     asset_cap = collateral * (max_ltv / 100.0) if collateral > 0 else 0.0
     max_eligible_loan = min(cash_flow_cap, asset_cap) if collateral > 0 else cash_flow_cap
     final_sanction = min(max_eligible_loan, req_loan) if (score >= 50 and not prof.get("litigation_pending", False)) else 0.0
