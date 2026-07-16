@@ -6,24 +6,14 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# --- SYSTEM PATH REGISTRATION OVERRIDE ---
-app_root_dir = os.path.dirname(os.path.abspath(__file__))
-if app_root_dir not in sys.path:
-    sys.path.insert(0, app_root_dir)
+# Ensure the system paths are cleanly appended with standard single-line spacing
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Flat margin imports prevent mixed whitespace parsing bugs entirely
-from underwriting_core import safe_calculate_metrics
-from underwriting_core import map_pricing_matrix
-from underwriting_core import evaluate_system_red_flags
-from underwriting_core import calculate_pv_amortization
-from underwriting_core import calculate_amortization_schedule
-from underwriting_core import generate_sanction_memo_pdf
-from underwriting_core import fetch_borrower_central_data
-from underwriting_core import validate_extended_profile
+# Single flat-line import layer ensures zero workspace whitespace distortion
+from underwriting_core import safe_calculate_metrics, map_pricing_matrix, evaluate_system_red_flags, calculate_pv_amortization, calculate_amortization_schedule, generate_sanction_memo_pdf, fetch_borrower_central_data, validate_extended_profile
 
-# --- VIEWPORT PAGE CONFIGURATION MATCHING IMAGE ---
+# --- MAIN DASHBOARD INTERFACE LAYER ---
 st.set_page_config(page_title="Credit Underwriting Terminal", page_icon="📊", layout="wide")
-
 st.title("🏛️ Commercial Credit Underwriting Dashboard")
 st.subheader("Automated Loan Evaluation Engine — Banks & NBFCs (India)")
 
@@ -38,7 +28,7 @@ if "active_profile" not in st.session_state:
         "pan_ent": True, "gst_ent": True, "biz_ent": True, "br_ent": True, "num_directors": 2, "directors_passed": 2
     }
 
-# --- SIDEBAR INTERFACE ---
+# --- CONTROL SIDEBAR INTERFACE ---
 st.sidebar.markdown("### 🗂️ Intake Source Selection")
 upload_mode = st.sidebar.radio("Data Sourcing Mode", ["Manual Intake / API Core Search", "Direct File Upload Package"])
 
@@ -46,23 +36,18 @@ if upload_mode == "Direct File Upload Package":
     st.sidebar.markdown("---")
     st.sidebar.subheader("📥 Tabular Document Intake")
     uploaded_file = st.sidebar.file_uploader("Upload Borrower Financial Data Profile", type=["csv"])
-    
     if uploaded_file is not None:
         try:
-            file_bytes = uploaded_file.getvalue()
-            text_stream = io.StringIO(file_bytes.decode("utf-8"))
+            text_stream = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
             reader = list(csv.DictReader(text_stream))
-            total_rows = len(reader)
-            
-            if total_rows >= 1:
-                st.sidebar.info(f"📋 Multi-Row Batch File Identified: Found {total_rows} Accounts.")
+            if len(reader) >= 1:
+                st.sidebar.info(f"📋 Multi-Row Batch File Identified: Found {len(reader)} Accounts.")
                 selected_row_idx = st.sidebar.selectbox(
                     "Select Borrower Record to Load",
-                    range(total_rows),
+                    range(len(reader)),
                     format_func=lambda x: f"Row {x+1}: {reader[x].get('industry', 'Record')} (CIBIL: {reader[x].get('cibil_score', 'N/A')})"
                 )
-                raw_row = reader[selected_row_idx]
-                st.session_state.active_profile = validate_extended_profile(raw_row)
+                st.session_state.active_profile = validate_extended_profile(reader[selected_row_idx])
                 st.sidebar.success(f"✅ Loaded Profile {selected_row_idx+1} Into Engine Context!")
         except Exception:
             st.sidebar.error("Error parsing tabular array layout.")
@@ -78,17 +63,15 @@ if st.sidebar.button("Fetch Central Database"):
         st.session_state.active_profile = fetched
         st.rerun()
 
-# --- GRID COLUMNS SETUP ---
+# --- MAIN TWO-COLUMN DASHBOARD GRID ---
 col1, col2 = st.columns([1.1, 1.2])
 
 with col1:
     st.header("📋 Borrower & Entity Intake")
-    
     with st.expander("📝 Part 1: Corporate Registration & KYC", expanded=True):
         industry_list = ["Pharma", "FMCG", "Healthcare", "Textile", "Real Estate", "Startup"]
         default_idx = industry_list.index(prof["industry"]) if prof["industry"] in industry_list else 0
         industry = st.selectbox("Industry Classification", industry_list, index=default_idx)
-        
         c1, c2 = st.columns(2)
         with c1:
             pan_ent = st.checkbox("Entity PAN Verified", value=prof["pan_ent"])
@@ -96,7 +79,6 @@ with col1:
         with c2:
             biz_ent = st.checkbox("Udyam/Shop Act Provided", value=prof["biz_ent"])
             br_ent = st.checkbox("Board Resolution Present", value=prof["br_ent"])
-            
         c3, c4 = st.columns(2)
         with c3:
             num_directors = st.number_input("Number of Corporate Directors", min_value=1, value=prof["num_directors"])
@@ -118,21 +100,18 @@ with col1:
         collateral = st.number_input("Appraised Collateral Market Value (INR)", value=prof["collateral_value"], step=100000.0)
         loan_term = st.slider("Loan Tenure (Years)", 1, 10, value=prof["loan_term"])
         base_mclr = st.number_input("Bank Benchmark Base Rate (MCLR %)", value=prof.get("base_mclr", 8.50), step=0.1)
-        
         st.markdown("**Tax & Banking Consistency Checks**")
         gst_turnover = st.number_input("Annual Sales Declared in GST (INR)", value=prof["gst_turnover"], step=100000.0)
         bank_credits = st.number_input("Total Operational Banking Credits (INR)", value=prof["bank_credits"], step=100000.0)
-
         variance_pct = ((bank_credits - gst_turnover) / gst_turnover * 100) if gst_turnover > 0 else 0.0
         if abs(variance_pct) > 10.0:
             st.error(f"⚠️ Turnover Mismatch Detected: {variance_pct:+.2f}%")
         else:
             st.success(f"✅ Turnover Reconciled: {variance_pct:+.2f}%")
+
 with col2:
     st.header("⚡ Risk Analysis & System Output")
     dscr, cr_ratio, tol_tnw, ltv = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral)
-    
-    # 🤖 100% AUTOMATED TRANSACTIONS CHECKPOINTS:
     current_state = {
         "recent_enquiries_30_days": enquiries,
         "frequent_address_changes": prof.get("frequent_address_changes", False),
@@ -141,7 +120,6 @@ with col2:
         "large_cash_deposits": prof.get("large_cash_deposits", False),
         "litigation_pending": prof.get("litigation_pending", False)
     }
-    
     flags = evaluate_system_red_flags(current_state, variance_pct)
     if flags:
         st.error("⚠️ Automated Red Flags Detected by Engine")
@@ -149,7 +127,6 @@ with col2:
     else:
         st.success("✅ Machine Screening Confirmed Clear: No Operational Red Flags Detected")
 
-    # --- SCORECARD SECTION ---
     st.markdown("### 📊 100-Point Internal Risk Scorecard")
     fin_score = 40 if dscr >= 1.50 else (32 if dscr >= 1.25 else 0)
     bureau_score = 30 if cibil >= 750 else (20 if cibil >= 650 else 0)
@@ -164,10 +141,8 @@ with col2:
     })
     st.table(score_df)
 
-    # --- LOAN SIZING SECTION ---
     st.markdown("### 💰 Smart Loan Sizing & Risk-Based Pricing")
     st.metric(label="Calculated Internal Risk Grade Score", value=f"{score} / 100 Points")
-    
     final_rate, max_ltv, min_dscr, tier_name, tier_type = map_pricing_matrix(score, base_mclr)
     
     max_annual_ds = noi / min_dscr if min_dscr > 0 else noi
@@ -183,10 +158,8 @@ with col2:
     with m2:
         st.metric(label="Maximum Portfolio Eligible Offer", value=f"₹{max_eligible_loan:,.2f}")
         st.metric(label="Collateral Asset Capacity (LTV Cap)", value=f"₹{asset_cap:,.2f}")
-
     st.markdown(f"#### 📑 FINAL APPROVED SANCTION AMOUNT: **₹{final_sanction:,.2f}**")
 
-    # --- 5 Cs MODULE ---
     st.markdown("---")
     st.markdown("### 🔍 Part 5: The 5 Cs of Credit Qualitative Module")
     c_char = st.text_area("1. Character (Integrity)", placeholder="Reputation record...")
