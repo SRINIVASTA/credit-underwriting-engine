@@ -10,8 +10,7 @@ from underwriting_core import (
     safe_calculate_metrics, 
     calculate_pv_amortization, 
     map_pricing_matrix, 
-    calculate_amortization_schedule, 
-    generate_sanction_memo_pdf 
+    calculate_amortization_schedule 
 ) 
 
 # --- STREAMLIT UI VIEWPORTS CONFIGURATION --- 
@@ -48,7 +47,6 @@ if upload_mode == "Direct File Upload Package":
                     if cleaned_row.get("industry"):
                         unique_industries.add(cleaned_row.get("industry"))
                 
-                # Dynamic update prevents dropdown index out-of-bounds crashes across 100+ rows
                 if unique_industries:
                     dynamic_industry_list = sorted(list(unique_industries))
                 
