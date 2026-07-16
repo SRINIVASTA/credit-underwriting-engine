@@ -178,6 +178,7 @@ with col2:
     if tnw <= 0: st.error("⚠️ SYSTEM BALANCE NOTICE: Tangible Net Worth is zero or negative.") 
     if noi <= 0: st.error("🛑 UNDERWRITING HALT: Operating income is negative or zero.") 
     
+    # Ratios calculated via native float variables from the interface
     dscr, cr_ratio, tol_tnw, ltv = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral) 
     
     fin_score = 40 if dscr >= 1.50 else (32 if dscr >= 1.25 else (20 if dscr >= 1.10 else 0)) 
@@ -210,7 +211,8 @@ with col2:
     st.table(score_df) 
     
     st.subheader("💡 Smart Loan Sizing & Risk-Based Pricing") 
-    if score < 50 or not kyc_cleared or noi <= 0: 
+    # POLICY INTEGRATION: Pure mathematical gate directly enforcing your financial rules checklist
+    if score < 50 or noi <= 0: 
         st.error(f"❌ APPLICATION REJECTED OUTRIGHT — Total Scorecard Grade: {score}/100") 
     else: 
         max_annual_ds = noi / min_dscr 
@@ -219,6 +221,12 @@ with col2:
         max_eligible_loan = min(cash_flow_cap, asset_cap) if collateral > 0 else cash_flow_cap 
         final_sanction = min(max_eligible_loan, req_loan) 
         
+        st.success(f"✅ UNDERWRITING APPLICATION APPROVED — Total Scorecard Grade: {score}/100")
+
+        # Graceful handling for registration notes to prevent interrupting financial decisions
+        if not kyc_cleared:
+            st.warning("⚠️ Operational Advisory Notice: Mismatches or gaps in entity filing paperwork / director verification count are currently active.")
+
         st.metric(label="Calculated Internal Risk Grade Score", value=f"{score} / 100 Points") 
         m1, m2 = st.columns(2) 
         with m1: 
