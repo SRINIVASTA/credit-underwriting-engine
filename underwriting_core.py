@@ -8,7 +8,7 @@ from fpdf import FPDF
 def parse_uploaded_file_stream(uploaded_file):
     """
     Decodes uploaded files, supporting BOTH horizontal multi-column CSVs 
-    and structured JSON data payloads with strict data validation.
+    and structured JSON data payloads with robust string-cleaning protections.
     """
     if uploaded_file is None:
         return None
@@ -16,13 +16,11 @@ def parse_uploaded_file_stream(uploaded_file):
         file_bytes = uploaded_file.read()
         raw_data = {}
 
-        # Parse Engine logic for Horizontal Multi-Column CSVs
         if uploaded_file.name.endswith('.csv'):
             text_stream = io.StringIO(file_bytes.decode("utf-8"))
-            # Ingests column headers dynamically to map to fields seamlessly
             reader = csv.DictReader(text_stream)
             for row in reader:
-                raw_data = row
+                raw_data = {str(k).strip(): str(v).strip() for k, v in row.items() if k is not None}
                 break 
 
         elif uploaded_file.name.endswith('.json'):
@@ -32,9 +30,8 @@ def parse_uploaded_file_stream(uploaded_file):
 
         def str_to_bool(v):
             if isinstance(v, bool): return v
-            return str(v).lower() in ("true", "1", "yes", "t")
+            return str(v).strip().lower() in ("true", "1", "yes", "t")
 
-        # Core Underwriting Field Schema Mapping Checks
         validated_profile = {
             "industry": str(raw_data.get("industry", "Pharma")),
             "cibil_score": int(float(raw_data.get("cibil_score", 700))),
@@ -126,8 +123,11 @@ class SanctionMemoPDF(FPDF):
         self.cell(0, 10, f"Page {self.page_no()} | System Verification Secured Framework", align="C")
 
 def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_data):
+    """Compiles structured parameters into a valid PDF binary byte stream."""
     pdf = SanctionMemoPDF()
     pdf.add_page()
+    
+    # 1. Executive Summary Profile Banner
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 8, "1. EXECUTIVE LOAN PROFILE SUMMARY", ln=True)
     pdf.set_font("Helvetica", "", 10)
@@ -137,28 +137,34 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
     pdf.cell(95, 6, f"KYC Compliance Track: {'PASSED' if meta_data['kyc_cleared'] else 'FAILED/HOLD'}", ln=True)
     pdf.ln(5)
 
+    # 2. Risk Metrics Table Ingestion Block
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 8, "2. UNDERWRITING ANALYSIS FACTOR BREAKDOWN", ln=True)
     pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(60, 7, "Underwriting Parameter", border=1)
-    pdf.cell(45, 7, "Observed Value", border=1)
-    pdf.cell(45, 7, "Bank Benchmarks", border=1)
-    pdf.cell(40, 7, "Status", border=1, ln=True)
+    
+    # Draw Headers
+    pdf.cell(65, 7, "Underwriting Parameter", border=1)
+    pdf.cell(40, 7, "Observed Value", border=1)
+    pdf.cell(40, 7, "Bank Benchmarks", border=1)
+    pdf.cell(45, 7, "Status", border=1, ln=True)
     
     pdf.set_font("Helvetica", "", 10)
     metrics_rows = [
-        ("Debt Service Cover (DSCR)", f"{metrics_data['dscr']}x", ">= 1.25x", "Pass" if metrics_data['dscr']>=1.25 else "Fail"),
-        ("Current Ratio Liquidity", f"{metrics_data['cr_ratio']}x", ">= 1.20x", "Pass" if metrics_data['cr_ratio']>=1.20 else "Fail"),
-        ("Structural Capital Leverage", f"{metrics_data['tol_tnw']}x", "<= 3.00x", "Pass" if metrics_data['tol_tnw']<=3.00 else "Fail"),
-        ("Loan To Value Ratio", f"{metrics_data['ltv']}%", "<= 60.0%", "Pass" if metrics_data['ltv']<=60.0 else "Fail"),
+        ("Debt Service Cover (DSCR)", f"{metrics_data['dscr']}x", ">= 1.25x", "Pass" if metrics_data['dscr'] >= 1.25 else "Fail"),
+        ("Current Ratio Liquidity", f"{metrics_data['cr_ratio']}x", ">= 1.20x", "Pass" if metrics_data['cr_ratio'] >= 1.20 else "Fail"),
+        ("Structural Capital Leverage", f"{metrics_data['tol_tnw']}x", "<= 3.00x", "Pass" if metrics_data['tol_tnw'] <= 3.00 else "Fail"),
+        ("Loan To Value Ratio", f"{metrics_data['ltv']}%", "<= 60.0%", "Pass" if metrics_data['ltv'] <= 60.0 else "Fail"),
     ]
+    
+    # FIXED LOOP: Correct object indexing maps row components into individual cells safely
     for row in metrics_rows:
-        pdf.cell(60, 7, row[0], border=1)
-        pdf.cell(45, 7, row[1], border=1)
-        pdf.cell(45, 7, row[2], border=1)
-        pdf.cell(40, 7, row[3], border=1, ln=True)
+        pdf.cell(65, 7, row[0], border=1)
+        pdf.cell(40, 7, row[1], border=1)
+        pdf.cell(40, 7, row[2], border=1)
+        pdf.cell(45, 7, row[3], border=1, ln=True)
     pdf.ln(5)
 
+    # 3. Final Portfolio Allocation Resolutions
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 8, "3. COMMITTEE DISBURSEMENT RESOLUTION", ln=True)
     pdf.set_font("Helvetica", "", 10)
@@ -171,6 +177,7 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
     pdf.cell(0, 8, f"FINAL APPROVED POLICY SANCTION OFFER: INR {results_data['final_sanction']:,.2f}", ln=True)
     pdf.cell(0, 8, f"RISK BASED PRICING YIELD APPLIED (APR): {round(results_data['final_rate'], 2)}%", ln=True)
     
+    # 4. Warnings and Red Flags Section
     if scoring_data["flags"]:
         pdf.ln(3)
         pdf.set_font("Helvetica", "B", 12)
@@ -179,4 +186,5 @@ def generate_sanction_memo_pdf(meta_data, metrics_data, scoring_data, results_da
         for flag in scoring_data["flags"]:
             pdf.cell(0, 6, f"- {flag}", ln=True)
             
-    return pdf.output()
+    # FIXED RETURN: Transmits a clean binary byte stream directly to Streamlit
+    return bytes(pdf.output())
