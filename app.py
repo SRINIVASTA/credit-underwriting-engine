@@ -138,7 +138,9 @@ with col1:
         else:
             st.success(f"Turnover Reconciled: {variance_pct:+.2f}%")
 with col2:
-    st.header("Risk Analysis & System Output")
+    st.header("⚡ Risk Analysis & System Output")
+    
+    # Process core calculation engine
     dscr, cr_ratio, tol_tnw, ltv = safe_calculate_metrics(noi, annual_debt_service, ca, cl, tol, tnw, req_loan, collateral)
     
     current_state = {
@@ -149,12 +151,13 @@ with col2:
     
     flags = evaluate_system_red_flags(current_state, variance_pct)
     if flags:
-        st.error("Critical Red Flags Triggered")
+        st.error("⚠️ Critical Red Flags Triggered")
         for flag in flags: st.markdown(f"- {flag}")
     else:
-        st.success("Behavioral Records Clear: No Operational Red Flags Detected")
+        st.success("✅ Behavioral Records Clear: No Operational Red Flags Detected")
 
-    st.markdown("### 100-Point Internal Risk Scorecard")
+    # --- SCORECARD SECTION ---
+    st.markdown("### 📊 100-Point Internal Risk Scorecard")
     fin_score = 40 if dscr >= 1.50 else (32 if dscr >= 1.25 else 0)
     bureau_score = 30 if cibil >= 750 else (20 if cibil >= 650 else 0)
     leverage_score = 15 if tol_tnw <= 2.00 else 11
@@ -168,8 +171,10 @@ with col2:
     })
     st.table(score_df)
 
-    st.markdown("### Smart Loan Sizing & Risk-Based Pricing")
+    # --- LOAN SIZING SECTION ---
+    st.markdown("### 💰 Smart Loan Sizing & Risk-Based Pricing")
     st.metric(label="Calculated Internal Risk Grade Score", value=f"{score} / 100 Points")
+    
     final_rate, max_ltv, min_dscr, tier_name, tier_type = map_pricing_matrix(score, base_mclr)
     
     max_annual_ds = noi / min_dscr if min_dscr > 0 else noi
@@ -181,37 +186,23 @@ with col2:
     m1, m2 = st.columns(2)
     with m1:
         st.metric(label="Risk-Based Pricing Applied (APR)", value=f"{round(final_rate, 2)}%")
-        st.metric(label="Cash-Flow Borrowing Limit (DSCR Cap)", value=f"INR {cash_flow_cap:,.2f}")
+        st.metric(label="Cash-Flow Borrowing Limit (DSCR Cap)", value=f"₹{cash_flow_cap:,.2f}")
     with m2:
-        st.metric(label="Maximum Portfolio Eligible Offer", value=f"INR {max_eligible_loan:,.2f}")
-        st.metric(label="Collateral Asset Capacity (LTV Cap)", value=f"INR {asset_cap:,.2f}")
+        st.metric(label="Maximum Portfolio Eligible Offer", value=f"₹{max_eligible_loan:,.2f}")
+        st.metric(label="Collateral Asset Capacity (LTV Cap)", value=f"₹{asset_cap:,.2f}")
 
-    st.markdown(f"#### FINAL APPROVED SANCTION AMOUNT: **INR {final_sanction:,.2f}**")
+    st.markdown(f"#### 📑 FINAL APPROVED SANCTION AMOUNT: **₹{final_sanction:,.2f}**")
 
+    # --- 5 Cs MODULE ---
     st.markdown("---")
-    st.markdown("### Part 5: The 5 Cs of Credit Qualitative Module")
+    st.markdown("### 🔍 Part 5: The 5 Cs of Credit Qualitative Module")
     c_char = st.text_area("1. Character (Integrity)", placeholder="Reputation record...")
     c_cap = st.text_area("2. Capacity (Repayment)", value=f"DSCR computed at {dscr}x.")
     c_cap_struct = st.text_area("3. Capital (Leverage)", value=f"Leverage structure sits at {tol_tnw}x.")
     c_coll = st.text_area("4. Collateral (Coverage)", value=f"Calculated LTV set at {ltv}%.")
     c_cond = st.text_area("5. Conditions (Outlook)", value=f"Sector: '{industry}'.")
 
-    st.markdown("---")
-    st.markdown("### Interactive Portfolio Plots (Plotly Express Engine)")
-    categories = ["Requested Facility", "Cash Flow Ceiling", "Collateral Ceiling", "Final Approved Sanction"]
-    amounts = [req_loan, cash_flow_cap, asset_cap, final_sanction]
-    
-    fig_bars = go.Figure(go.Bar(x=amounts, y=categories, orientation='h', marker=dict(color=['#636EFA', '#EF553B', '#00CC96', '#AB63FA'])))
-    fig_bars.update_layout(title="Loan Proposal vs Underwriting Exposure Ceilings", xaxis_title="Amount (INR)", yaxis_title="Evaluation Segment", height=320, margin=dict(l=20, r=20, t=40, b=20))
-    st.plotly_chart(fig_bars, use_container_width=True)
-
-    years, balances, cumulative_interest = calculate_amortization_schedule(final_sanction, final_rate, loan_term)
-    fig_line = go.Figure()
-    fig_line.add_trace(go.Scatter(x=years, y=balances, mode='lines+markers', name='Principal Outstanding', line=dict(color='#EF553B', width=3)))
-    fig_line.add_trace(go.Scatter(x=years, y=cumulative_interest, mode='lines+markers', name='Cumulative Interest Paid', line=dict(color='#636EFA', width=3, dash='dash')))
-    fig_line.update_layout(title=f"{loan_term}-Year Runway Loan Amortization Track", xaxis_title="Loan Timeline Milestone", yaxis_title="Capital Balance (INR)", height=350, margin=dict(l=20, r=20, t=40, b=20))
-    st.plotly_chart(fig_line, use_container_width=True)
-
+    # --- SIDEBAR DOWNLOAD ATTACHMENT HOOK ---
     try:
         meta_p = {"industry": industry, "kyc_cleared": pan_ent and gst_ent}
         metrics_p = {"dscr": dscr, "cr_ratio": cr_ratio, "tol_tnw": tol_tnw, "ltv": ltv}
@@ -220,6 +211,39 @@ with col2:
         qual_p = {"character": c_char, "capacity": c_cap, "capital": c_cap_struct, "collateral": c_coll, "conditions": c_cond}
         
         pdf_bytes = generate_sanction_memo_pdf(meta_p, metrics_p, scoring_p, results_p, qualitative_5cs=qual_p)
-        st.sidebar.download_button(label="Download Official Sanction PDF", data=pdf_bytes, file_name="Sanction_Memo_Draft.pdf", mime="application/pdf")
+        st.sidebar.download_button(label="📥 Download Official Sanction PDF", data=pdf_bytes, file_name="Sanction_Memo_Draft.pdf", mime="application/pdf")
     except Exception:
         pass
+
+# ==============================================================================
+# --- CRITICAL FIX: BREAK OUT OF COLUMNS WRAPPER TO RENDER FULL WIDTH PLOTS ---
+# ==============================================================================
+st.markdown("---")
+st.markdown("### 📊 Interactive Portfolio Plots (Plotly Express Engine)")
+
+# 1. Horizontal exposure boundaries bar chart
+categories = ["Requested Facility", "Cash Flow Ceiling", "Collateral Ceiling", "Final Approved Sanction"]
+amounts = [req_loan, cash_flow_cap, asset_cap, final_sanction]
+
+fig_bars = go.Figure(go.Bar(
+    x=amounts, y=categories, orientation='h',
+    marker=dict(color=['#636EFA', '#EF553B', '#00CC96', '#AB63FA'])
+))
+fig_bars.update_layout(
+    title="Loan Proposal vs Underwriting Exposure Ceilings",
+    xaxis_title="Amount (INR)", yaxis_title="Evaluation Segment", 
+    height=320, margin=dict(l=20, r=20, t=40, b=20)
+)
+st.plotly_chart(fig_bars, use_container_width=True)
+
+# 2. Complete long-term runway amortization line graph 
+years, balances, cumulative_interest = calculate_amortization_schedule(final_sanction, final_rate, loan_term)
+fig_line = go.Figure()
+fig_line.add_trace(go.Scatter(x=years, y=balances, mode='lines+markers', name='Principal Outstanding', line=dict(color='#EF553B', width=3)))
+fig_line.add_trace(go.Scatter(x=years, y=cumulative_interest, mode='lines+markers', name='Cumulative Interest Paid', line=dict(color='#636EFA', width=3, dash='dash')))
+fig_line.update_layout(
+    title=f"{loan_term}-Year Runway Loan Amortization Track",
+    xaxis_title="Loan Timeline Milestone", yaxis_title="Capital Balance (INR)",
+    height=380, margin=dict(l=20, r=20, t=40, b=20)
+)
+st.plotly_chart(fig_line, use_container_width=True)
