@@ -22,7 +22,10 @@ st.subheader("Automated Loan Evaluation Engine — Banks & NBFCs (India)")
 # --- SIDEBAR INTEGRATED CONTROL DATA PIPELINES --- 
 st.sidebar.header("📁 Intake Source Selection") 
 upload_mode = st.sidebar.radio("Data Sourcing Mode", ["Manual Intake / API Core Search", "Direct File Upload Package"]) 
+
+# Safe Fallback initializations to prevent NameErrors in dynamic widgets
 active_profile = None 
+selected_row_idx = 0  
 
 if upload_mode == "Direct File Upload Package": 
     st.sidebar.markdown("---") 
@@ -101,45 +104,44 @@ with col1:
     with st.expander("🔑 Part 1: Corporate Registration & KYC", expanded=True): 
         industry_list = ["Pharma", "FMCG", "Healthcare", "Education", "Hospitals", "Trading", "Distributors", "Restaurant", "Hospitality", "Textile", "Garments", "Real Estate", "Construction", "Startup"] 
         default_ind_idx = industry_list.index(active_profile["industry"]) if active_profile and "industry" in active_profile else 0 
-        industry = st.selectbox("Industry Classification", industry_list, index=default_ind_idx) 
+        industry = st.selectbox("Industry Classification", industry_list, index=default_ind_idx, key=f"ind_sel_{selected_row_idx}") 
         
         c1, c2 = st.columns(2) 
         with c1: 
-            pan_ent = st.checkbox("Entity PAN Verified", value=active_profile["pan_ent"] if active_profile and "pan_ent" in active_profile else True) 
-            gst_ent = st.checkbox("GST Registration Active", value=active_profile["gst_ent"] if active_profile and "gst_ent" in active_profile else True) 
+            pan_ent = st.checkbox("Entity PAN Verified", value=active_profile["pan_ent"] if active_profile and "pan_ent" in active_profile else True, key=f"pan_chk_{selected_row_idx}") 
+            gst_ent = st.checkbox("GST Registration Active", value=active_profile["gst_ent"] if active_profile and "gst_ent" in active_profile else True, key=f"gst_chk_{selected_row_idx}") 
         with c2: 
-            biz_ent = st.checkbox("Udyam/Shop Act Provided", value=active_profile["biz_ent"] if active_profile and "biz_ent" in active_profile else True) 
-            br_ent = st.checkbox("Board Resolution Present", value=active_profile["br_ent"] if active_profile and "br_ent" in active_profile else True) 
+            biz_ent = st.checkbox("Udyam/Shop Act Provided", value=active_profile["biz_ent"] if active_profile and "biz_ent" in active_profile else True, key=f"biz_chk_{selected_row_idx}") 
+            br_ent = st.checkbox("Board Resolution Present", value=active_profile["br_ent"] if active_profile and "br_ent" in active_profile else True, key=f"br_chk_{selected_row_idx}") 
  
         p_num_dir = int(active_profile["num_directors"]) if active_profile and "num_directors" in active_profile else 2 
         p_pass_dir = int(active_profile["directors_passed"]) if active_profile and "directors_passed" in active_profile else 2 
  
-        num_directors = st.number_input("Number of Corporate Directors", min_value=1, max_value=10, value=p_num_dir) 
+        num_directors = st.number_input("Number of Corporate Directors", min_value=1, max_value=10, value=p_num_dir, key=f"num_dir_{selected_row_idx}") 
         safe_passed_val = min(p_pass_dir, int(num_directors)) 
-        directors_passed = st.number_input("Verified Cleared Directors (PAN + Aadhaar Passes)", min_value=0, max_value=int(num_directors), value=safe_passed_val) 
+        directors_passed = st.number_input("Verified Cleared Directors (PAN + Aadhaar Passes)", min_value=0, max_value=int(num_directors), value=safe_passed_val, key=f"pass_dir_{selected_row_idx}") 
         
     with st.expander("📊 Part 2: Financial Statements & Bureau Checks", expanded=True): 
-        cibil = st.slider("CIBIL Bureau Score", 300, 900, value=int(active_profile["cibil_score"]) if active_profile else 750, key=f"cibil_slider_{selected_row_idx}" if upload_mode == "Direct File Upload Package" else "cibil_manual")
-        
-        enquiries = st.number_input("Bureau Enquiries (Last 30 Days)", min_value=0, max_value=15, value=int(active_profile["recent_enquiries_30_days"]) if active_profile and "recent_enquiries_30_days" in active_profile else 1) 
+        cibil = st.slider("CIBIL Bureau Score", 300, 900, value=int(active_profile["cibil_score"]) if active_profile and "cibil_score" in active_profile else 750, key=f"cibil_slider_{selected_row_idx}") 
+        enquiries = st.number_input("Bureau Enquiries (Last 30 Days)", min_value=0, max_value=15, value=int(active_profile["recent_enquiries_30_days"]) if active_profile and "recent_enquiries_30_days" in active_profile else 1, key=f"enq_num_{selected_row_idx}") 
  
-        noi = st.number_input("Net Operating Income (Annual INR)", value=float(active_profile["net_operating_income"]) if active_profile and "net_operating_income" in active_profile else 2200000.0, step=50000.0) 
-        annual_debt_service = st.number_input("Current Annual Debt Service (INR)", min_value=0.0, value=float(active_profile["annual_debt_service"]) if active_profile and "annual_debt_service" in active_profile else 1200000.0, step=50000.0) 
-        tol = st.number_input("Total Outside Liabilities (TOL INR)", min_value=0.0, value=float(active_profile["tol"]) if active_profile and "tol" in active_profile else 6000000.0, step=100000.0) 
-        tnw = st.number_input("Tangible Net Worth (TNW INR)", value=float(active_profile["tnw"]) if active_profile and "tnw" in active_profile else 3500000.0, step=100000.0) 
-        ca = st.number_input("Current Assets (INR)", min_value=0.0, value=float(active_profile["current_assets"]) if active_profile and "current_assets" in active_profile else 2500000.0, step=50000.0) 
+        noi = st.number_input("Net Operating Income (Annual INR)", value=float(active_profile["net_operating_income"]) if active_profile and "net_operating_income" in active_profile else 2200000.0, step=50000.0, key=f"noi_num_{selected_row_idx}") 
+        annual_debt_service = st.number_input("Current Annual Debt Service (INR)", min_value=0.0, value=float(active_profile["annual_debt_service"]) if active_profile and "annual_debt_service" in active_profile else 1200000.0, step=50000.0, key=f"ads_num_{selected_row_idx}") 
+        tol = st.number_input("Total Outside Liabilities (TOL INR)", min_value=0.0, value=float(active_profile["tol"]) if active_profile and "tol" in active_profile else 6000000.0, step=100000.0, key=f"tol_num_{selected_row_idx}") 
+        tnw = st.number_input("Tangible Net Worth (TNW INR)", value=float(active_profile["tnw"]) if active_profile and "tnw" in active_profile else 3500000.0, step=100000.0, key=f"tnw_num_{selected_row_idx}") 
+        ca = st.number_input("Current Assets (INR)", min_value=0.0, value=float(active_profile["current_assets"]) if active_profile and "current_assets" in active_profile else 2500000.0, step=50000.0, key=f"ca_num_{selected_row_idx}") 
 
     with st.expander("💼 Part 3: Loan Proposal Structure", expanded=True): 
-        cl = st.number_input("Current Liabilities (INR)", min_value=0.0, value=float(active_profile["current_liabilities"]) if active_profile and "current_liabilities" in active_profile else 1800000.0, step=50000.0) 
-        req_loan = st.number_input("Requested Term Loan Facility (INR)", min_value=0.0, value=float(active_profile["requested_loan"]) if active_profile and "requested_loan" in active_profile else 6500000.0, step=100000.0) 
-        collateral = st.number_input("Appraised Collateral Market Value (INR)", min_value=0.0, value=float(active_profile["collateral_value"]) if active_profile and "collateral_value" in active_profile else 14000000.0, step=100000.0) 
-        loan_term = st.slider("Loan Tenure (Years)", 1, 10, value=int(active_profile["loan_term"]) if active_profile and "loan_term" in active_profile else 7) 
-        base_mclr = st.number_input("Bank Benchmark Base Rate (MCLR %)", min_value=0.0, max_value=20.0, value=8.50, step=0.1) 
+        cl = st.number_input("Current Liabilities (INR)", min_value=0.0, value=float(active_profile["current_liabilities"]) if active_profile and "current_liabilities" in active_profile else 1800000.0, step=50000.0, key=f"cl_num_{selected_row_idx}") 
+        req_loan = st.number_input("Requested Term Loan Facility (INR)", min_value=0.0, value=float(active_profile["requested_loan"]) if active_profile and "requested_loan" in active_profile else 6500000.0, step=100000.0, key=f"req_num_{selected_row_idx}") 
+        collateral = st.number_input("Appraised Collateral Market Value (INR)", min_value=0.0, value=float(active_profile["collateral_value"]) if active_profile and "collateral_value" in active_profile else 14000000.0, step=100000.0, key=f"col_num_{selected_row_idx}") 
+        loan_term = st.slider("Loan Tenure (Years)", 1, 10, value=int(active_profile["loan_term"]) if active_profile and "loan_term" in active_profile else 7, key=f"term_slide_{selected_row_idx}") 
+        base_mclr = st.number_input("Bank Benchmark Base Rate (MCLR %)", min_value=0.0, max_value=20.0, value=8.50, step=0.1, key=f"mclr_num_{selected_row_idx}") 
  
         st.markdown("**Tax & Banking Consistency Checks**") 
-        gst_turnover = st.number_input("Annual Sales Declared in GST (INR)", min_value=0.0, value=float(active_profile["gst_turnover"]) if active_profile else 12000000.0, step=100000.0) 
-        bank_credits = st.number_input("Total Operational Banking Credits (INR)", min_value=0.0, value=float(active_profile["bank_credits"]) if active_profile and "bank_credits" in active_profile else 12200000.0, step=100000.0) 
-        bounces = st.checkbox("Any Cheque / EMI Bounces in Last 12 Months?", value=active_profile["bounces"] if active_profile and "bounces" in active_profile else False) 
+        gst_turnover = st.number_input("Annual Sales Declared in GST (INR)", min_value=0.0, value=float(active_profile["gst_turnover"]) if active_profile else 12000000.0, step=100000.0, key=f"gst_turn_{selected_row_idx}") 
+        bank_credits = st.number_input("Total Operational Banking Credits (INR)", min_value=0.0, value=float(active_profile["bank_credits"]) if active_profile and "bank_credits" in active_profile else 12200000.0, step=100000.0, key=f"bank_cred_{selected_row_idx}") 
+        bounces = st.checkbox("Any Cheque / EMI Bounces in Last 12 Months?", value=active_profile["bounces"] if active_profile and "bounces" in active_profile else False, key=f"bounce_chk_{selected_row_idx}") 
  
         if gst_turnover > 0: 
             variance_amt = bank_credits - gst_turnover 
@@ -220,7 +222,7 @@ with col2:
  
         try: 
             pdf_bytes = generate_sanction_memo_pdf(meta_pkg, metrics_pkg, scoring_pkg, results_pkg) 
-            st.sidebar.download_button(label="📄 Download Official Sanction PDF", data=pdf_bytes, file_name="Sanction_Memo_Draft.pdf", mime="application/pdf") 
+            st.sidebar.download_button(label="📄 Download Official Sanction PDF", data=pdf_bytes, file_name="Sanction_Memo_Draft.pdf", mime="application/pdf", key=f"pdf_btn_{selected_row_idx}") 
         except Exception: 
             st.sidebar.error("Could not pre-compile download module bundle.") 
             
@@ -232,11 +234,11 @@ with col2:
  
         fig_bars = go.Figure(go.Bar(x=amounts, y=categories, orientation='h', marker=dict(color=['#636EFA', '#EF553B', '#00CC96', '#AB63FA']))) 
         fig_bars.update_layout(title="Loan Proposal vs Underwriting Exposure Ceilings", xaxis_title="Amount (INR)", yaxis_title="Evaluation Segment", height=350, margin=dict(l=20, r=20, t=40, b=20)) 
-        st.plotly_chart(fig_bars, use_container_width=True) 
+        st.plotly_chart(fig_bars, use_container_width=True, key=f"bar_chart_{selected_row_idx}") 
         
         years, balances, cumulative_interest = calculate_amortization_schedule(final_sanction, final_rate, loan_term) 
         fig_line = go.Figure() 
         fig_line.add_trace(go.Scatter(x=years, y=balances, mode='lines+markers', name='Principal Outstanding', line=dict(color='#EF553B', width=3))) 
         fig_line.add_trace(go.Scatter(x=years, y=cumulative_interest, mode='lines+markers', name='Cumulative Interest Paid', line=dict(color='#636EFA', width=3, dash='dash'))) 
         fig_line.update_layout(title=f"{loan_term}-Year Runway Loan Amortization Track", xaxis_title="Loan Timeline Milestone", yaxis_title="Capital Balance (INR)", legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99), height=380, margin=dict(l=20, r=20, t=40, b=20)) 
-        st.plotly_chart(fig_line, use_container_width=True) 
+        st.plotly_chart(fig_line, use_container_width=True, key=f"line_chart_{selected_row_idx}") 
