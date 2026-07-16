@@ -5,7 +5,7 @@ import io
 import csv
 import json
 from underwriting_core import (
-    fetch_Central_data_profile,
+    fetch_borrower_central_data,
     parse_uploaded_file_stream,
     safe_calculate_metrics,
     calculate_pv_amortization,
