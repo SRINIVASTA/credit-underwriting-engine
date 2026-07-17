@@ -4,7 +4,7 @@ A Python-powered automated risk assessment engine and Streamlit web application 
 
 ## 🚀 Live Demo
 The application is hosted and available to test online at:
-👉 **[credit-underwriting-engine Streamlit App](https://streamlit.app)**
+👉 **[credit-underwriting-engine Streamlit App](https://credit-underwriting-engine-8hehtpvzfg2cguvhqs3qpb.streamlit.app/)**
 
 ---
 
@@ -64,7 +64,20 @@ pip install pytest
 # Run the test file
 pytest test_underwriting.py -v
 ```
+---
+**SRINIVASTA / Credit Underwriting Engine**  
+*Building the future of autonomous risk management.*
+* **Lead Architect & Developer:** [Srinivasta](https://github.com/SRINIVASTA)
 
+### Connect with Me
+- [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/srinivas-t-a-557637119/)  
+- [![Kaggle](https://img.shields.io/badge/Kaggle-20BEFF?style=for-the-badge&logo=kaggle&logoColor=white)](https://www.kaggle.com/srinivasta)  
+- [![Email](https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:tasrinivass@gmail.com)  
+- [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/srinivasta)
+
+
+
+---
 ---
 
 ## 📄 License
