@@ -1,3 +1,22 @@
+import streamlit as st
+
+# Force Streamlit to completely hide the header bar, deployment buttons, and GitHub icons
+st.markdown("""
+    <style>
+    header[data-testid="stHeader"] {
+        visibility: hidden !important;
+        display: none !important;
+    }
+    div[data-testid="stToolbar"] {
+        visibility: hidden !important;
+        display: none !important;
+    }
+    footer {
+        visibility: hidden !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 import streamlit as st 
 import pandas as pd 
 import plotly.graph_objects as go 
